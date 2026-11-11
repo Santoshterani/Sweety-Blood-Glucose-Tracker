@@ -1,0 +1,22 @@
+# Starts PostgreSQL for local development:  docker compose up -d
+# Then, from /backend:  npm run db:init
+services:
+  db:
+    image: postgres:16
+    container_name: sweety-db
+    environment:
+      POSTGRES_USER: sweety
+      POSTGRES_PASSWORD: sweety
+      POSTGRES_DB: sweety
+    ports:
+      - "5432:5432"
+    volumes:
+      - sweety-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sweety -d sweety"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  sweety-pgdata:
