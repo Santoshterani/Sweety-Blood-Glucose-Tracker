@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Alert, Box, Button, Container, Link, Paper, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Link, TextField, Typography } from '@mui/material';
 import { api, ApiError } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
+import AuthShell from '../components/AuthShell.jsx';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -38,65 +39,56 @@ export default function Signup() {
     } catch (err) {
       if (!(err instanceof ApiError)) throw err;
       setErrors(err.fieldErrors || {});
-      if (!err.fieldErrors) setFormError(err.message);
+      if (Object.keys(err.fieldErrors || {}).length === 0) setFormError(err.message);
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Container maxWidth="xs" sx={{ py: 8 }}>
-      <Paper sx={{ p: 4 }} elevation={3}>
-        <Typography variant="h4" color="primary" gutterBottom>
-          Create your account
+    <AuthShell title="Create your account" subtitle="Your readings are private to you.">
+      <Box component="form" onSubmit={handleSubmit} noValidate sx={{ display: 'grid', gap: 2 }}>
+        {formError && <Alert severity="error">{formError}</Alert>}
+        <TextField
+          label="Name"
+          autoComplete="name"
+          value={form.name}
+          onChange={setField('name')}
+          error={Boolean(errors.name)}
+          helperText={errors.name}
+          autoFocus
+          fullWidth
+        />
+        <TextField
+          label="Email"
+          type="email"
+          autoComplete="email"
+          value={form.email}
+          onChange={setField('email')}
+          error={Boolean(errors.email)}
+          helperText={errors.email}
+          fullWidth
+        />
+        <TextField
+          label="Password"
+          type="password"
+          autoComplete="new-password"
+          value={form.password}
+          onChange={setField('password')}
+          error={Boolean(errors.password)}
+          helperText={errors.password || 'At least 8 characters.'}
+          fullWidth
+        />
+        <Button type="submit" variant="contained" size="large" disabled={submitting}>
+          {submitting ? 'Creating account…' : 'Sign up'}
+        </Button>
+        <Typography variant="body2" align="center">
+          Already have an account?{' '}
+          <Link component={RouterLink} to="/login">
+            Log in
+          </Link>
         </Typography>
-        <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Your readings are private to you.
-        </Typography>
-
-        <Box component="form" onSubmit={handleSubmit} noValidate sx={{ display: 'grid', gap: 2 }}>
-          {formError && <Alert severity="error">{formError}</Alert>}
-          <TextField
-            label="Name"
-            autoComplete="name"
-            value={form.name}
-            onChange={setField('name')}
-            error={Boolean(errors.name)}
-            helperText={errors.name}
-            autoFocus
-            fullWidth
-          />
-          <TextField
-            label="Email"
-            type="email"
-            autoComplete="email"
-            value={form.email}
-            onChange={setField('email')}
-            error={Boolean(errors.email)}
-            helperText={errors.email}
-            fullWidth
-          />
-          <TextField
-            label="Password"
-            type="password"
-            autoComplete="new-password"
-            value={form.password}
-            onChange={setField('password')}
-            error={Boolean(errors.password)}
-            helperText={errors.password || 'At least 8 characters.'}
-            fullWidth
-          />
-          <Button type="submit" variant="contained" size="large" disabled={submitting}>
-            {submitting ? 'Creating account…' : 'Sign up'}
-          </Button>
-          <Typography variant="body2" align="center">
-            Already have an account?{' '}
-            <Link component={RouterLink} to="/login">
-              Log in
-            </Link>
-          </Typography>
-        </Box>
-      </Paper>
-    </Container>
+      </Box>
+    </AuthShell>
   );
 }

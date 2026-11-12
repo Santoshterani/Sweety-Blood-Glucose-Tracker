@@ -5,7 +5,7 @@ const { requireAuth } = require('../middleware/auth');
 const { HttpError, validationError } = require('../utils/httpError');
 const { validateReadingInput } = require('../utils/validation');
 const { isValidDateString, todayInTimezone } = require('../utils/dates');
-const { SLOT_LABELS, MAX_READINGS_PER_DAY } = require('../utils/slots');
+const { SLOT_LABELS, SLOT_VALUES, MAX_READINGS_PER_DAY } = require('../utils/slots');
 
 const router = express.Router();
 router.use(requireAuth); // every reading route needs a logged-in user
@@ -50,11 +50,13 @@ function parseBody(body) {
  * otherwise (with only 4 slots) the max-4 rule could never be reached.
  */
 async function assertDayRules(client, userId, { date, slot }, excludeId = null) {
-  const { rows } = await client.query(
-    `SELECT id, slot FROM readings
-     WHERE user_id = $1 AND reading_date = $2 AND ($3::int IS NULL OR id <> $3)`,
-    [userId, date, excludeId]
-  );
+  let sql = 'SELECT id, slot FROM readings WHERE user_id = ? AND reading_date = ?';
+  const params = [userId, date];
+  if (excludeId !== null) {
+    sql += ' AND id <> ?';
+    params.push(excludeId);
+  }
+  const { rows } = await client.query(sql, params);
 
   if (rows.length >= MAX_READINGS_PER_DAY) {
     throw new HttpError(409, `You can add only ${MAX_READINGS_PER_DAY} readings per day.`, {
@@ -71,15 +73,15 @@ async function assertDayRules(client, userId, { date, slot }, excludeId = null) 
 async function inUserTransaction(userId, work) {
   const client = await db.getClient();
   try {
-    await client.query('BEGIN');
-    await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]);
+    await client.query('START TRANSACTION');
+    await client.query('SELECT id FROM users WHERE id = ? FOR UPDATE', [userId]);
     const result = await work(client);
     await client.query('COMMIT');
     return result;
   } catch (err) {
     await client.query('ROLLBACK');
     // Last line of defence: the database UNIQUE constraint caught a duplicate we somehow missed.
-    if (err.code === '23505') {
+    if (err.code === 'ER_DUP_ENTRY') {
       const message = 'You already have a reading for this slot and date.';
       throw new HttpError(409, message, { slot: message });
     }
@@ -89,28 +91,35 @@ async function inUserTransaction(userId, work) {
   }
 }
 
-// GET /api/readings?date=YYYY-MM-DD&page=1&limit=20
+// GET /api/readings?date=YYYY-MM-DD&slot=morning&page=1&limit=20
 router.get('/', async (req, res) => {
   const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
 
   const params = [req.user.id];
-  let where = 'WHERE user_id = $1';
+  let where = 'WHERE user_id = ?';
   if (req.query.date) {
     if (!isValidDateString(req.query.date)) {
       throw validationError({ date: 'Please enter a valid date (YYYY-MM-DD).' });
     }
     params.push(req.query.date);
-    where += ` AND reading_date = $${params.length}`;
+    where += ' AND reading_date = ?';
+  }
+  if (req.query.slot) {
+    if (!SLOT_VALUES.includes(req.query.slot)) {
+      throw validationError({ slot: 'Please select a valid time slot.' });
+    }
+    params.push(req.query.slot);
+    where += ' AND slot = ?';
   }
 
-  const countResult = await db.query(`SELECT COUNT(*)::int AS total FROM readings ${where}`, params);
-  const total = countResult.rows[0].total;
+  const countResult = await db.query(`SELECT COUNT(*) AS total FROM readings ${where}`, params);
+  const total = Number(countResult.rows[0].total);
 
   const { rows } = await db.query(
     `SELECT * FROM readings ${where}
      ORDER BY reading_date DESC, ${SLOT_ORDER_SQL}
-     LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+     LIMIT ? OFFSET ?`,
     [...params, limit, (page - 1) * limit]
   );
 
@@ -126,11 +135,12 @@ router.post('/', async (req, res) => {
 
   const reading = await inUserTransaction(req.user.id, async (client) => {
     await assertDayRules(client, req.user.id, data);
-    const { rows } = await client.query(
-      `INSERT INTO readings (user_id, reading_date, slot, value)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
+    // MySQL has no "RETURNING": insert first, then read the new row back by its id.
+    const inserted = await client.query(
+      'INSERT INTO readings (user_id, reading_date, slot, value) VALUES (?, ?, ?, ?)',
       [req.user.id, data.date, data.slot, data.value]
     );
+    const { rows } = await client.query('SELECT * FROM readings WHERE id = ?', [inserted.insertId]);
     return rows[0];
   });
 
@@ -144,16 +154,17 @@ router.put('/:id', async (req, res) => {
 
   const reading = await inUserTransaction(req.user.id, async (client) => {
     // Only the owner can edit; someone else's id looks exactly like a missing one.
-    const existing = await client.query('SELECT id FROM readings WHERE id = $1 AND user_id = $2', [id, req.user.id]);
+    const existing = await client.query('SELECT id FROM readings WHERE id = ? AND user_id = ?', [id, req.user.id]);
     if (!existing.rows[0]) throw new HttpError(404, 'Reading not found.');
 
     await assertDayRules(client, req.user.id, data, id);
-    const { rows } = await client.query(
+    await client.query(
       `UPDATE readings
-       SET reading_date = $1, slot = $2, value = $3, updated_at = NOW()
-       WHERE id = $4 AND user_id = $5 RETURNING *`,
+       SET reading_date = ?, slot = ?, value = ?, updated_at = NOW()
+       WHERE id = ? AND user_id = ?`,
       [data.date, data.slot, data.value, id, req.user.id]
     );
+    const { rows } = await client.query('SELECT * FROM readings WHERE id = ?', [id]);
     return rows[0];
   });
 
@@ -163,7 +174,7 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/readings/:id
 router.delete('/:id', async (req, res) => {
   const id = parseId(req.params.id);
-  const { rowCount } = await db.query('DELETE FROM readings WHERE id = $1 AND user_id = $2', [id, req.user.id]);
+  const { rowCount } = await db.query('DELETE FROM readings WHERE id = ? AND user_id = ?', [id, req.user.id]);
   if (!rowCount) throw new HttpError(404, 'Reading not found.');
   res.status(204).end();
 });

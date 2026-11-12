@@ -3,6 +3,11 @@ const {
   todayInTimezone,
   monthToDateRange,
   previousMonthRange,
+  lastSevenDaysRange,
+  yearToDateRange,
+  addDays,
+  diffDays,
+  ageOn,
 } = require('../src/utils/dates');
 const { summarize } = require('../src/utils/stats');
 
@@ -57,5 +62,27 @@ describe('summarize', () => {
 
   test('empty list gives nulls and a zero count (for the empty state)', () => {
     expect(summarize([])).toEqual({ count: 0, highest: null, lowest: null, average: null });
+  });
+});
+
+describe('weekly, yearly and date arithmetic', () => {
+  test('weekly is the 7 days ending on the selected date', () => {
+    expect(lastSevenDaysRange('2026-11-11')).toEqual({ from: '2026-11-05', to: '2026-11-11' });
+    expect(lastSevenDaysRange('2026-03-03')).toEqual({ from: '2026-02-25', to: '2026-03-03' });
+  });
+
+  test('yearly is 1 January up to the selected date', () => {
+    expect(yearToDateRange('2026-11-11')).toEqual({ from: '2026-01-01', to: '2026-11-11' });
+  });
+
+  test('addDays and diffDays cross month and year ends', () => {
+    expect(addDays('2026-12-30', 3)).toBe('2027-01-02');
+    expect(addDays('2026-03-01', -1)).toBe('2026-02-28');
+    expect(diffDays('2026-11-05', '2026-11-11')).toBe(6);
+  });
+
+  test('ageOn only counts a birthday once it has happened', () => {
+    expect(ageOn('1972-03-14', '2026-03-13')).toBe(53);
+    expect(ageOn('1972-03-14', '2026-03-14')).toBe(54);
   });
 });

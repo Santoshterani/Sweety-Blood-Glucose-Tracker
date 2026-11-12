@@ -1,9 +1,8 @@
 // API tests against a real PostgreSQL test database (see tests/setupEnv.js).
-const fs = require('fs');
-const path = require('path');
 const request = require('supertest');
 const app = require('../src/app');
 const db = require('../src/db');
+const applySchema = require('../src/db/init');
 const { todayInTimezone } = require('../src/utils/dates');
 
 const PAST = '2025-10-15'; // always in the past, so these tests never depend on today's date
@@ -20,11 +19,12 @@ async function addReading(token, body) {
 }
 
 beforeAll(async () => {
-  await db.query(fs.readFileSync(path.join(__dirname, '..', 'schema.sql'), 'utf8'));
+  await applySchema();
 });
 
 beforeEach(async () => {
-  await db.query('TRUNCATE readings, users RESTART IDENTITY CASCADE');
+  await db.query('DELETE FROM readings');
+  await db.query('DELETE FROM users');
 });
 
 afterAll(async () => {
@@ -36,7 +36,7 @@ describe('auth', () => {
     const { res } = await signup();
     expect(res.status).toBe(201);
     expect(res.body.token).toBeTruthy();
-    expect(res.body.user).toEqual({ id: expect.any(Number), name: 'Asha', email: 'asha@example.com' });
+    expect(res.body.user).toMatchObject({ id: expect.any(Number), name: 'Asha', email: 'asha@example.com', targetLow: 70, targetHigh: 180 });
     expect(res.body.user.password_hash).toBeUndefined();
 
     const { rows } = await db.query('SELECT password_hash FROM users');
@@ -140,8 +140,8 @@ describe('readings: validation rules', () => {
       addReading(token, { date: PAST, slot: 'morning', value: 101 }),
     ]);
     expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
-    const { rows } = await db.query('SELECT COUNT(*)::int AS n FROM readings');
-    expect(rows[0].n).toBe(1);
+    const { rows } = await db.query('SELECT COUNT(*) AS n FROM readings');
+    expect(Number(rows[0].n)).toBe(1);
   });
 });
 

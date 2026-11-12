@@ -1,11 +1,9 @@
 // Run with: npm run db:init
-const fs = require('fs');
-const path = require('path');
+const applySchema = require('./applySchema');
 const db = require('./db');
 
 async function main() {
-  const sql = fs.readFileSync(path.join(__dirname, '..', 'schema.sql'), 'utf8');
-  await db.query(sql);
+  await applySchema();
   console.log('Database schema is ready.');
   await db.pool.end();
 }

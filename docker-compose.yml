@@ -16,7 +16,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U sweety -d sweety"]
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 20
 
 volumes:
   sweety-pgdata:

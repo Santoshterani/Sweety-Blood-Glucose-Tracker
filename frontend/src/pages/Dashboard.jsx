@@ -1,185 +1,195 @@
-import { useCallback, useEffect, useState } from 'react';
-import {
-  AppBar,
-  Box,
-  Button,
-  Container,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Snackbar,
-  TextField,
-  Toolbar,
-  Typography,
-} from '@mui/material';
+import { useEffect, useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
+import { Alert, Box, Button, LinearProgress, Link, List, ListItem, ListItemText, Paper, Skeleton, Typography } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { api, ApiError } from '../api.js';
+import { api } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
-import { formatDate, todayString } from '../dates.js';
-import ReadingFormDialog from '../components/ReadingFormDialog.jsx';
-import ReportCard from '../components/ReportCard.jsx';
+import { formatLongDate, formatShortDate } from '../dates.js';
+import { toneFor } from '../status.js';
+import PageHeader from '../components/PageHeader.jsx';
+import StatTile from '../components/StatTile.jsx';
+import StatusChip from '../components/StatusChip.jsx';
+import { ChartLegend, LineChart } from '../components/Charts.jsx';
 
-const REPORTS = [
-  { key: 'daily', title: 'Daily', empty: 'No readings for this day yet. Use “Add reading” to log one.' },
-  { key: 'month-to-date', title: 'Month-to-date', empty: 'No readings so far this month.' },
-  { key: 'monthly', title: 'Monthly (previous month)', empty: 'No readings were recorded in the previous month.' },
-];
+function greeting() {
+  const hour = new Date().getHours();
+  return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+}
+
+const shortDay = (iso) =>
+  new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
+
+function Panel({ title, action, children, sx }) {
+  return (
+    <Paper variant="outlined" component="section" sx={{ p: 3, display: 'grid', gap: 2, alignContent: 'start', ...sx }}>
+      <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
+        <Typography variant="h6" component="h2">
+          {title}
+        </Typography>
+        {action}
+      </Box>
+      {children}
+    </Paper>
+  );
+}
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
-  const [date, setDate] = useState(todayString);
-  const [slots, setSlots] = useState([]);
-  const [reports, setReports] = useState({}); // { daily: {...}, ... }
-  const [reportErrors, setReportErrors] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState(null); // reading being edited, or null when adding
-  const [deleting, setDeleting] = useState(null); // reading waiting for delete confirmation
-  const [deleteBusy, setDeleteBusy] = useState(false);
-  const [toast, setToast] = useState('');
-
-  const reload = useCallback(() => setRefreshKey((k) => k + 1), []);
+  const { user } = useAuth();
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.slots().then(({ slots }) => setSlots(slots)).catch(() => setToast('Could not load the time slots.'));
-  }, []);
-
-  // Load all three reports whenever the date changes or a reading is added / edited / deleted.
-  useEffect(() => {
-    if (!date) return undefined;
-    let cancelled = false; // ignore answers that arrive after the user picked another date
-    setLoading(true);
-
-    Promise.allSettled(REPORTS.map((r) => api.report(r.key, date))).then((results) => {
-      if (cancelled) return;
-      const nextReports = {};
-      const nextErrors = {};
-      results.forEach((result, i) => {
-        const key = REPORTS[i].key;
-        if (result.status === 'fulfilled') nextReports[key] = result.value;
-        else nextErrors[key] = result.reason instanceof ApiError ? result.reason.message : 'Could not load this report.';
-      });
-      setReports(nextReports);
-      setReportErrors(nextErrors);
-      setLoading(false);
-    });
-
+    let cancelled = false;
+    api
+      .dashboard()
+      .then((res) => !cancelled && setData(res))
+      .catch((err) => !cancelled && setError(err.message));
     return () => {
       cancelled = true;
     };
-  }, [date, refreshKey]);
+  }, []);
 
-  const openAdd = () => {
-    setEditing(null);
-    setFormOpen(true);
-  };
+  const addButton = (
+    <Button component={RouterLink} to="/readings" variant="contained" size="large" startIcon={<AddIcon />}>
+      Add reading
+    </Button>
+  );
+  const firstName = (user?.name || '').split(' ')[0];
 
-  const openEdit = (reading) => {
-    setEditing(reading);
-    setFormOpen(true);
-  };
-
-  function handleSaved(savedDate) {
-    setFormOpen(false);
-    setToast(editing ? 'Reading updated.' : 'Reading added.');
-    setDate(savedDate); // jump to the day that was just changed so the person sees it
-    reload();
+  if (error) {
+    return (
+      <>
+        <PageHeader title={`${greeting()}, ${firstName}`} action={addButton} />
+        <Alert severity="error">{error}</Alert>
+      </>
+    );
   }
 
-  async function confirmDelete() {
-    setDeleteBusy(true);
-    try {
-      await api.deleteReading(deleting.id);
-      setToast('Reading deleted.');
-      reload();
-    } catch (err) {
-      setToast(err instanceof ApiError ? err.message : 'Could not delete the reading.');
-    } finally {
-      setDeleteBusy(false);
-      setDeleting(null);
-    }
+  if (!data) {
+    return (
+      <>
+        <PageHeader title={`${greeting()}, ${firstName}`} action={addButton} />
+        <Skeleton variant="rounded" height={200} />
+        <Skeleton variant="rounded" height={110} />
+        <Skeleton variant="rounded" height={320} />
+      </>
+    );
   }
+
+  const { target, today, week, trend, recent } = data;
+  const noReadingsYet = recent.length === 0;
+  const trendPoints = trend.map((t) => ({ label: shortDay(t.date), value: t.average }));
+  const note = (r) => (r ? `${formatShortDate(r.date)} · ${r.slotLabel}` : 'No readings yet');
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'grey.100' }}>
-      <AppBar position="static" elevation={0}>
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Sweety
-          </Typography>
-          <Typography variant="body2" sx={{ mr: 2, display: { xs: 'none', sm: 'block' } }}>
-            {user.name}
-          </Typography>
-          <Button color="inherit" onClick={logout}>
-            Log out
-          </Button>
-        </Toolbar>
-      </AppBar>
+    <>
+      <PageHeader title={`${greeting()}, ${firstName}`} subtitle={formatLongDate(data.date)} action={addButton} />
 
-      <Container maxWidth="lg" sx={{ py: 3 }}>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', mb: 3 }}>
-          <TextField
-            label="Report date"
-            type="date"
-            size="small"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: todayString() } }}
-            sx={{ bgcolor: 'background.paper' }}
-          />
-          <Box sx={{ flexGrow: 1 }} />
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openAdd} disabled={slots.length === 0}>
-            Add reading
-          </Button>
-        </Box>
-
-        <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, alignItems: 'start' }}>
-          {REPORTS.map((r) => (
-            <ReportCard
-              key={r.key}
-              title={r.title}
-              report={reports[r.key]}
-              error={reportErrors[r.key]}
-              loading={loading}
-              emptyText={r.empty}
-              onEdit={r.key === 'daily' ? openEdit : undefined}
-              onDelete={r.key === 'daily' ? setDeleting : undefined}
-            />
+      <Panel
+        title="Today’s readings"
+        action={
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: 'text.secondary' }}>
+            <Typography variant="body2">{today.logged} of 4 logged</Typography>
+            <LinearProgress variant="determinate" value={(today.logged / 4) * 100} aria-label="Readings logged today" sx={{ width: 120, height: 8, borderRadius: 4 }} />
+          </Box>
+        }
+      >
+        <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' } }}>
+          {today.slots.map((s) => (
+            <Box
+              key={s.slot}
+              sx={{
+                p: 2.25,
+                minHeight: 136,
+                borderRadius: '14px',
+                display: 'grid',
+                gap: 1,
+                alignContent: 'start',
+                border: s.reading ? '1px solid #E1E7E4' : '1.5px dashed #84928C',
+                bgcolor: s.reading ? 'background.paper' : '#FAFBFA',
+              }}
+            >
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                {s.label}
+              </Typography>
+              {s.reading ? (
+                <>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
+                    <Typography variant="h4" component="div" sx={{ fontSize: 36 }}>
+                      {s.reading.value}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      mg/dl
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <StatusChip value={s.reading.value} target={target} />
+                  </Box>
+                </>
+              ) : (
+                <>
+                  <Typography color="text.secondary">Not logged yet</Typography>
+                  <Box>
+                    <Button component={RouterLink} to="/readings" variant="outlined" size="small">
+                      Add reading
+                    </Button>
+                  </Box>
+                </>
+              )}
+            </Box>
           ))}
         </Box>
-      </Container>
+      </Panel>
 
-      <ReadingFormDialog
-        open={formOpen}
-        reading={editing}
-        defaultDate={date || todayString()}
-        slots={slots}
-        onClose={() => setFormOpen(false)}
-        onSaved={handleSaved}
-      />
+      <Box component="section" aria-label="Last 7 days" sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+        <StatTile bordered label="Average" value={week.average === null ? '–' : week.average.toFixed(1)} unit="mg/dl" note={`Last 7 days · ${week.count} ${week.count === 1 ? 'reading' : 'readings'}`} />
+        <StatTile bordered label="Highest" value={week.highest ?? '–'} unit="mg/dl" note={note(week.highestReading)} />
+        <StatTile bordered label="Lowest" value={week.lowest ?? '–'} unit="mg/dl" note={note(week.lowestReading)} />
+        <StatTile bordered label="In target range" value={week.inRangePercent ?? '–'} unit={week.inRangePercent === null ? '' : '%'} note={`Target ${target.low}–${target.high} mg/dl`} />
+      </Box>
 
-      <Dialog open={Boolean(deleting)} onClose={deleteBusy ? undefined : () => setDeleting(null)}>
-        <DialogTitle>Delete this reading?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {deleting && `${deleting.slotLabel} · ${deleting.value} mg/dl on ${formatDate(deleting.date)}. This cannot be undone.`}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleting(null)} disabled={deleteBusy}>
-            Cancel
-          </Button>
-          <Button color="error" variant="contained" onClick={confirmDelete} disabled={deleteBusy}>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {noReadingsYet ? (
+        <Paper variant="outlined" sx={{ p: 5, textAlign: 'center', display: 'grid', gap: 1.5, justifyItems: 'center' }}>
+          <Typography variant="h6">Welcome to Sweety</Typography>
+          <Typography color="text.secondary" sx={{ maxWidth: 420 }}>
+            Add your first blood glucose reading and your trends and reports will appear here.
+          </Typography>
+          {addButton}
+        </Paper>
+      ) : (
+        <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' }, alignItems: 'start' }}>
+          <Panel title="Daily average, last 14 days" sx={{ minWidth: 0 }}>
+            <LineChart
+              points={trendPoints}
+              target={target}
+              ariaLabel={`Line chart of the daily average glucose for the last 14 days. Target range is ${target.low} to ${target.high} mg/dl.`}
+            />
+            <ChartLegend target={target} />
+          </Panel>
 
-      <Snackbar open={Boolean(toast)} autoHideDuration={3000} onClose={() => setToast('')} message={toast} />
-    </Box>
+          <Panel
+            title="Recent readings"
+            action={
+              <Link component={RouterLink} to="/readings" underline="hover" sx={{ fontWeight: 600, fontSize: 14 }}>
+                View all
+              </Link>
+            }
+            sx={{ minWidth: 0 }}
+          >
+            <List disablePadding>
+              {recent.map((r) => (
+                <ListItem key={r.id} disableGutters divider sx={{ gap: 1.5 }} secondaryAction={null}>
+                  <ListItemText primary={r.slotLabel} secondary={formatShortDate(r.date)} slotProps={{ primary: { fontWeight: 500 } }} />
+                  <Typography variant="h6" component="span" sx={{ fontSize: 18 }} style={{ color: toneFor(r.value, target).fg }}>
+                    {r.value}
+                  </Typography>
+                  <StatusChip value={r.value} target={target} />
+                </ListItem>
+              ))}
+            </List>
+          </Panel>
+        </Box>
+      )}
+    </>
   );
 }
