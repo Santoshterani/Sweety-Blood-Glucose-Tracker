@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="520" viewBox="0 0 680 520" fill="none">
+  <rect width="680" height="520" rx="36" fill="#F4F8F5"/>
+  <circle cx="340" cy="251" r="205" fill="#D6ECE5"/>
+  <circle cx="340" cy="251" r="157" fill="#EAF5F1"/>
+  <path d="M75 414c81-31 165-35 247-13 94 25 183 22 283-19v92H75v-60Z" fill="#C5E5DC"/>
+  <path d="M96 414c75-20 142-18 205 6 80 30 180 19 278-18" stroke="#92C9B8" stroke-width="3" stroke-linecap="round"/>
+
+  <g transform="rotate(-8 340 248)">
+    <rect x="231" y="106" width="218" height="297" rx="34" fill="#0B6E64"/>
+    <rect x="241" y="116" width="198" height="277" rx="27" fill="#FFF"/>
+    <rect x="263" y="141" width="154" height="143" rx="16" fill="#EAF5F1"/>
+    <path d="M340 161c-15 17-24 28-24 40a24 24 0 0 0 48 0c0-12-9-23-24-40Z" fill="#0B6E64"/>
+    <text x="340" y="245" text-anchor="middle" fill="#14211F" font-family="Arial, sans-serif" font-size="35" font-weight="700">108</text>
+    <text x="340" y="267" text-anchor="middle" fill="#55645F" font-family="Arial, sans-serif" font-size="12" letter-spacing="1.5">mg/dL</text>
+    <circle cx="340" cy="331" r="26" fill="#D6ECE5"/>
+    <path d="M331 331h18m-9-9v18" stroke="#0B6E64" stroke-width="4" stroke-linecap="round"/>
+    <rect x="319" y="393" width="42" height="35" rx="8" fill="#FFF"/>
+    <path d="M329 428v31h22v-31" fill="#FFF"/>
+    <path d="M340 455v31" stroke="#C1D0CB" stroke-width="4" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(440 292)">
+    <rect width="158" height="104" rx="18" fill="#FFF"/>
+    <text x="18" y="26" fill="#55645F" font-family="Arial, sans-serif" font-size="10" font-weight="700" letter-spacing="1.2">YOUR WEEK</text>
+    <path d="M20 74h118" stroke="#E1E7E4" stroke-width="2"/>
+    <path d="m25 65 21-16 21 9 22-24 22 17 20-20" stroke="#0B6E64" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="46" cy="49" r="4" fill="#0B6E64"/>
+    <circle cx="67" cy="58" r="4" fill="#0B6E64"/>
+    <circle cx="89" cy="34" r="4" fill="#0B6E64"/>
+    <circle cx="111" cy="51" r="4" fill="#0B6E64"/>
+    <circle cx="131" cy="31" r="4" fill="#0B6E64"/>
+  </g>
+
+  <circle cx="166" cy="188" r="24" fill="#F8D8CF"/>
+  <path d="M166 176v24m-12-12h24" stroke="#B76554" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="523" cy="154" r="9" fill="#F2B8A7"/>
+  <circle cx="176" cy="328" r="7" fill="#91C8B8"/>
+  <path d="M526 212c13-19 25-18 31-5-8 12-19 14-31 5Z" fill="#92C9B8"/>
+  <path d="M526 212c-3-15 4-24 17-25 5 13-1 22-17 25Z" fill="#72B29F"/>
+  <path d="M526 213c7-8 14-14 22-19" stroke="#4F927F" stroke-width="2" stroke-linecap="round"/>
+</svg>

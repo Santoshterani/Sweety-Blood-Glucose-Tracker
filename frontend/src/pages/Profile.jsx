@@ -29,6 +29,56 @@ function Fact({ label, value }) {
   );
 }
 
+function ProfileField({ name, label, form, errors, onChange, required = false, helperText, textFieldProps = {}, children }) {
+  const inputId = `profile-${name}`;
+  const labelId = `${inputId}-label`;
+  const slotProps = {
+    ...textFieldProps.slotProps,
+    ...(textFieldProps.select
+      ? { select: { ...textFieldProps.slotProps?.select, 'aria-labelledby': labelId } }
+      : {}),
+  };
+
+  return (
+    <Box sx={{ minWidth: 0, display: 'grid', alignContent: 'start', gap: 0.5 }}>
+      <Typography
+        id={labelId}
+        component="label"
+        htmlFor={inputId}
+        sx={{
+          color: '#435779',
+          fontSize: 9,
+          fontWeight: 700,
+          letterSpacing: '0.06em',
+          lineHeight: 1.2,
+          textTransform: 'uppercase',
+        }}
+      >
+        {label}{required ? ' *' : ''}
+      </Typography>
+      <TextField
+        {...textFieldProps}
+        id={inputId}
+        value={form[name] ?? ''}
+        onChange={onChange}
+        error={Boolean(errors[name])}
+        helperText={errors[name] || helperText || null}
+        required={required}
+        fullWidth
+        size="small"
+        slotProps={slotProps}
+        sx={{
+          '& .MuiOutlinedInput-root': { borderRadius: '6px', bgcolor: '#fff', fontSize: 12 },
+          '& .MuiOutlinedInput-notchedOutline': { borderColor: '#D9E1EF' },
+          '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#9BAAC3' },
+        }}
+      >
+        {children}
+      </TextField>
+    </Box>
+  );
+}
+
 export default function Profile() {
   const { updateUser } = useAuth();
   const [profile, setProfile] = useState(null);
@@ -58,17 +108,6 @@ export default function Profile() {
     setForm((f) => ({ ...f, [name]: e.target.value }));
     setSaved(false);
   };
-
-  // Shared props for every text field: label, value, change handler and the error message.
-  const field = (name, label, extra = {}) => ({
-    label,
-    value: form?.[name] ?? '',
-    onChange: setField(name),
-    error: Boolean(errors[name]),
-    helperText: errors[name] || extra.helper || ' ',
-    fullWidth: true,
-    ...extra.props,
-  });
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -109,6 +148,22 @@ export default function Profile() {
     );
   }
 
+  const field = (name, label, { required = false, helperText, props = {}, children } = {}) => (
+    <ProfileField
+      key={name}
+      name={name}
+      label={label}
+      form={form}
+      errors={errors}
+      onChange={setField(name)}
+      required={required}
+      helperText={helperText}
+      textFieldProps={props}
+    >
+      {children}
+    </ProfileField>
+  );
+
   const textInput = { slotProps: { htmlInput: { inputMode: 'numeric' } } };
 
   return (
@@ -137,54 +192,69 @@ export default function Profile() {
         </Box>
       </Paper>
 
-      <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, alignItems: 'start' }}>
-        <Paper variant="outlined" component="section" aria-labelledby="personal-heading" sx={{ p: 3, display: 'grid', gap: 1 }}>
-          <Typography id="personal-heading" variant="h6" component="h2" sx={{ mb: 1 }}>
+      <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, alignItems: 'start' }}>
+        <Paper variant="outlined" component="section" aria-labelledby="personal-heading" sx={{ p: 2, display: 'grid', gap: 2 }}>
+          <Typography id="personal-heading" variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>
             Personal details
           </Typography>
-          <Box sx={{ display: 'grid', gap: '8px 16px', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
-            <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
-              <TextField {...field('name', 'Full name', { props: { autoComplete: 'name' } })} />
-            </Box>
-            <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
-              <TextField {...field('email', 'Email', { props: { type: 'email', autoComplete: 'email' } })} />
-            </Box>
-            <TextField {...field('phone', 'Phone', { props: { type: 'tel', autoComplete: 'tel' } })} />
-            <TextField {...field('dateOfBirth', 'Date of birth', { props: { type: 'date', slotProps: { inputLabel: { shrink: true }, htmlInput: { max: todayString() } } } })} />
-            <TextField {...field('sex', 'Sex', { props: { select: true } })}>
-              <MenuItem value="">Prefer not to say</MenuItem>
-              <MenuItem value="Female">Female</MenuItem>
-              <MenuItem value="Male">Male</MenuItem>
-              <MenuItem value="Other">Other</MenuItem>
-            </TextField>
-            <Box />
-            <TextField {...field('heightCm', 'Height (cm)', textInput)} />
-            <TextField {...field('weightKg', 'Weight (kg)', textInput)} />
+          <Box sx={{ display: 'grid', gap: '14px 12px', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
+            {field('name', 'Full name', { required: true, props: { autoComplete: 'name' } })}
+            {field('email', 'Email', { required: true, props: { type: 'email', autoComplete: 'email' } })}
+            {field('phone', 'Phone', { props: { type: 'tel', autoComplete: 'tel' } })}
+            {field('dateOfBirth', 'Date of birth', { props: { type: 'date', slotProps: { htmlInput: { max: todayString() } } } })}
+            {field('sex', 'Sex', { props: { select: true }, children: (
+              <>
+                <MenuItem value="">Prefer not to say</MenuItem>
+                <MenuItem value="Female">Female</MenuItem>
+                <MenuItem value="Male">Male</MenuItem>
+                <MenuItem value="Other">Other</MenuItem>
+              </>
+            ) })}
           </Box>
         </Paper>
 
-        <Paper variant="outlined" component="section" aria-labelledby="medical-heading" sx={{ p: 3, display: 'grid', gap: 1 }}>
-          <Typography id="medical-heading" variant="h6" component="h2" sx={{ mb: 1 }}>
-            Medical details
+        <Paper variant="outlined" component="section" aria-labelledby="health-heading" sx={{ p: 2, display: 'grid', gap: 2 }}>
+          <Typography id="health-heading" variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>
+            Health details
           </Typography>
-          <Box sx={{ display: 'grid', gap: '8px 16px', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
-            <TextField {...field('diabetesType', 'Diabetes type', { props: { select: true } })}>
-              <MenuItem value="">Not set</MenuItem>
-              <MenuItem value="Type 1">Type 1</MenuItem>
-              <MenuItem value="Type 2">Type 2</MenuItem>
-              <MenuItem value="Gestational">Gestational</MenuItem>
-              <MenuItem value="Other">Other</MenuItem>
-            </TextField>
-            <TextField {...field('diagnosedYear', 'Year diagnosed', textInput)} />
+          <Box sx={{ display: 'grid', gap: '14px 12px', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
+            {field('diabetesType', 'Diabetes type', { props: { select: true }, children: (
+              <>
+                <MenuItem value="">Not set</MenuItem>
+                <MenuItem value="Type 1">Type 1</MenuItem>
+                <MenuItem value="Type 2">Type 2</MenuItem>
+                <MenuItem value="Gestational">Gestational</MenuItem>
+                <MenuItem value="Other">Other</MenuItem>
+              </>
+            ) })}
+            {field('diagnosedYear', 'Year diagnosed', { props: textInput })}
+            {field('heightCm', 'Height (cm)', { props: textInput })}
+            {field('weightKg', 'Weight (kg)', { props: textInput })}
             <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
-              <TextField {...field('medication', 'Medication')} />
+              {field('medication', 'Medication')}
             </Box>
-            <TextField {...field('targetLow', 'Target low (mg/dl)', { ...textInput, helper: 'Default 70' })} />
-            <TextField {...field('targetHigh', 'Target high (mg/dl)', { ...textInput, helper: 'Default 180' })} />
-            <TextField {...field('doctorName', 'Doctor')} />
-            <TextField {...field('doctorPhone', 'Doctor phone', { props: { type: 'tel' } })} />
+          </Box>
+        </Paper>
+
+        <Paper variant="outlined" component="section" aria-labelledby="targets-heading" sx={{ p: 2, display: 'grid', gap: 2 }}>
+          <Typography id="targets-heading" variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>
+            Blood sugar targets
+          </Typography>
+          <Box sx={{ display: 'grid', gap: '14px 12px', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
+            {field('targetLow', 'Target low (mg/dl)', { helperText: 'Default 70', props: textInput })}
+            {field('targetHigh', 'Target high (mg/dl)', { helperText: 'Default 180', props: textInput })}
+          </Box>
+        </Paper>
+
+        <Paper variant="outlined" component="section" aria-labelledby="care-heading" sx={{ p: 2, display: 'grid', gap: 2 }}>
+          <Typography id="care-heading" variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>
+            Care contacts
+          </Typography>
+          <Box sx={{ display: 'grid', gap: '14px 12px', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
+            {field('doctorName', 'Doctor')}
+            {field('doctorPhone', 'Doctor phone', { props: { type: 'tel' } })}
             <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
-              <TextField {...field('emergencyContact', 'Emergency contact')} />
+              {field('emergencyContact', 'Emergency contact')}
             </Box>
           </Box>
         </Paper>

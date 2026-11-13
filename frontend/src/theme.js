@@ -23,12 +23,50 @@ export const theme = createTheme({
     button: { textTransform: 'none', fontWeight: 600 },
   },
   components: {
+    MuiTextField: {
+      defaultProps: { size: 'small' },
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          position: 'static',
+          transform: 'none',
+          transformOrigin: 'unset',
+          maxWidth: 'none',
+          marginBottom: 4,
+          color: '#435779',
+          fontSize: 9,
+          fontWeight: 700,
+          letterSpacing: '0.06em',
+          lineHeight: 1.2,
+          textTransform: 'uppercase',
+          '&.MuiInputLabel-shrink': { transform: 'none' },
+          '&.Mui-focused': { color: '#435779' },
+          '&.Mui-error': { color: '#B3261E' },
+        },
+      },
+    },
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: { root: { minHeight: 44, borderRadius: 12, paddingInline: 20 } },
     },
     MuiPaper: { styleOverrides: { outlined: { borderColor: '#E1E7E4', borderRadius: 16 } } },
-    MuiOutlinedInput: { styleOverrides: { notchedOutline: { borderColor: '#84928C' } } },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          borderRadius: 6,
+          backgroundColor: '#FFFFFF',
+          fontSize: 12,
+          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#9BAAC3' },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#0B6E64' },
+          '&.Mui-error .MuiOutlinedInput-notchedOutline': { borderColor: '#B3261E' },
+        },
+        notchedOutline: {
+          borderColor: '#D9E1EF',
+          '& legend': { width: '0 !important' },
+        },
+      },
+    },
     MuiTab: { styleOverrides: { root: { minHeight: 44, minWidth: 96, fontWeight: 600, textTransform: 'none' } } },
     MuiTableCell: { styleOverrides: { head: { fontWeight: 600, fontSize: 13, color: '#3F4F4B', background: '#F7FAF9' } } },
   },

@@ -126,6 +126,7 @@ export default function ReadingForm({ slots, reading = null, defaultDate, onSave
 
       <TextField
         label="Date"
+        required
         type="date"
         value={form.date}
         onChange={setField('date')}
@@ -136,7 +137,7 @@ export default function ReadingForm({ slots, reading = null, defaultDate, onSave
       />
 
       <FormControl component="fieldset" error={Boolean(errors.slot)} variant="standard">
-        <FormLabel component="legend" sx={{ color: 'text.primary', fontWeight: 600, fontSize: 14, mb: 1 }}>
+        <FormLabel component="legend" required sx={{ color: 'text.primary', fontWeight: 700, fontSize: 9, letterSpacing: '0.06em', mb: 1, textTransform: 'uppercase' }}>
           Time slot
         </FormLabel>
         <RadioGroup name="slot" value={form.slot} onChange={setField('slot')} sx={{ display: 'grid', gap: 1 }}>
@@ -179,6 +180,7 @@ export default function ReadingForm({ slots, reading = null, defaultDate, onSave
         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, flexWrap: 'wrap' }}>
           <TextField
             label="Glucose value"
+            required
             value={form.value}
             onChange={setField('value')}
             error={Boolean(errors.value)}

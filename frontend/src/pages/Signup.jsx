@@ -51,6 +51,7 @@ export default function Signup() {
         {formError && <Alert severity="error">{formError}</Alert>}
         <TextField
           label="Name"
+          required
           autoComplete="name"
           value={form.name}
           onChange={setField('name')}
@@ -61,6 +62,7 @@ export default function Signup() {
         />
         <TextField
           label="Email"
+          required
           type="email"
           autoComplete="email"
           value={form.email}
@@ -71,6 +73,7 @@ export default function Signup() {
         />
         <TextField
           label="Password"
+          required
           type="password"
           autoComplete="new-password"
           value={form.password}

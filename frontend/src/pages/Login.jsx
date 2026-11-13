@@ -36,11 +36,12 @@ export default function Login() {
   }
 
   return (
-    <AuthShell title="Welcome back" subtitle="Log in to track your blood glucose.">
+    <AuthShell title="Welcome back" subtitle="Log in to track your blood glucose." showHero>
       <Box component="form" onSubmit={handleSubmit} noValidate sx={{ display: 'grid', gap: 2 }}>
         {formError && <Alert severity="error">{formError}</Alert>}
         <TextField
           label="Email"
+          required
           type="email"
           autoComplete="email"
           value={form.email}
@@ -52,6 +53,7 @@ export default function Login() {
         />
         <TextField
           label="Password"
+          required
           type="password"
           autoComplete="current-password"
           value={form.password}

@@ -170,6 +170,7 @@ export default function Reports() {
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'flex-start' }}>
               <TextField
                 label="From"
+                required
                 type="date"
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
@@ -180,6 +181,7 @@ export default function Reports() {
               />
               <TextField
                 label="To"
+                required
                 type="date"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
@@ -223,6 +225,7 @@ export default function Reports() {
         ) : (
           <TextField
             label="Report date"
+            required
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}

@@ -53,6 +53,8 @@ npm run db:init               # creates the tables (safe to re-run)
 npm run dev                   # API on http://localhost:4000
 ```
 
+The API also applies `schema.sql` at startup, creating or upgrading the tables before accepting requests.
+
 `npm run db:init` also **upgrades an older database**: if you already ran an earlier version of Sweety, it adds the
 new patient-profile columns to your existing `users` table (`ADD COLUMN IF NOT EXISTS`) and keeps your data.
 
