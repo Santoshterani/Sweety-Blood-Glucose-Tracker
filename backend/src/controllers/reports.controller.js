@@ -1,17 +1,17 @@
 const reportsService = require('../services/reports.service');
-const { validateReportType, validateSelectedDate, validateCustomRange } = require('../validators/reports.validator');
+const { validateReportType, validateReportParams } = require('../validators/reports.validator');
 
-/** Validates the type and the query that goes with it: ?date= for presets, ?from=&to= for custom. */
+/** Presets accept ?date= for compatibility; selectable periods accept ?from=&to=. */
 function parse(type, query) {
   validateReportType(type);
-  return type === 'custom' ? validateCustomRange(query) : { date: validateSelectedDate(query) };
+  return validateReportParams(type, query);
 }
 
 // GET /api/reports/:type   type = daily | weekly | monthly | yearly | month-to-date | custom
 //   daily          ?date=             that day, plus each reading with its slot
-//   weekly         ?date=             the 7 days ending on that date
-//   monthly        ?date=             the whole previous month
-//   yearly         ?date=             1 Jan -> that date
+//   weekly         ?from=&to=          the selected date range
+//   monthly        ?from=&to=          the selected month
+//   yearly         ?from=&to=          the selected year
 //   month-to-date  ?date=             1st of the month -> that date
 //   custom         ?from=&to=         any range you choose
 const get = async (req, res) => {

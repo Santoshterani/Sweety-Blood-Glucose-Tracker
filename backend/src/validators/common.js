@@ -1,5 +1,6 @@
 // Small reusable Joi building blocks shared by the validators.
 const Joi = require('joi');
+const { HttpError } = require('../utils/httpError');
 const { isValidDateString, isFutureDate } = require('../utils/dates');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,4 +45,12 @@ function wholeNumber({ min, max, message, required, allowDecimal = false }) {
     .messages({ 'any.required': required || message, 'number.range': message });
 }
 
-module.exports = { Joi, EMAIL_RE, PHONE_RE, BLANK, dateString, wholeNumber };
+/** A positive integer id from a URL. Anything else looks exactly like "not found": a 404. */
+function parseId(raw, notFoundMessage) {
+  const text = String(raw);
+  const id = /^[1-9]\d{0,9}$/.test(text) ? Number(text) : NaN;
+  if (!Number.isSafeInteger(id) || id > 2147483647) throw new HttpError(404, notFoundMessage);
+  return id;
+}
+
+module.exports = { parseId, Joi, EMAIL_RE, PHONE_RE, BLANK, dateString, wholeNumber };

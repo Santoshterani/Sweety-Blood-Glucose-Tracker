@@ -5,6 +5,7 @@ const { Joi, dateString } = require('./common');
 const { validate } = require('./validate');
 
 const REPORT_TYPES = ['daily', 'weekly', 'monthly', 'yearly', 'month-to-date', 'custom'];
+const RANGE_REPORT_TYPES = ['weekly', 'monthly', 'yearly'];
 const MAX_CUSTOM_DAYS = 1827; // about 5 years
 
 const DATE_INVALID = 'Please enter a valid date (YYYY-MM-DD).';
@@ -14,7 +15,7 @@ const selectedDateSchema = Joi.object({
   date: dateString({ required: DATE_INVALID, invalid: DATE_INVALID }).default(Joi.ref('$today')),
 });
 
-/** Custom range: ?from=&to= — both required, real dates, not in the future, from <= to, at most ~5 years. */
+/** Date range: ?from=&to= — both required, real dates, not in the future, from <= to, at most ~5 years. */
 const customRangeSchema = Joi.object({
   from: dateString({ required: 'Please select a start date.', invalid: 'Please enter a valid start date (YYYY-MM-DD).' }).required(),
   to: dateString({ required: 'Please select an end date.', invalid: 'Please enter a valid end date (YYYY-MM-DD).' })
@@ -30,10 +31,20 @@ const customRangeSchema = Joi.object({
 });
 
 const today = () => todayInTimezone(config.timezone);
+const validateSelectedDate = (query) => validate(selectedDateSchema, query, { today: today() }).date;
+const validateCustomRange = (query) => validate(customRangeSchema, query, { today: today() });
 
 function validateReportType(type) {
   if (!REPORT_TYPES.includes(type)) throw new HttpError(404, 'Report type not found.');
   return type;
+}
+
+function validateReportParams(type, query) {
+  const hasRange = query.from !== undefined || query.to !== undefined;
+  if (type === 'custom' || (RANGE_REPORT_TYPES.includes(type) && hasRange)) {
+    return validateCustomRange(query);
+  }
+  return { date: validateSelectedDate(query) };
 }
 
 module.exports = {
@@ -42,6 +53,7 @@ module.exports = {
   selectedDateSchema,
   customRangeSchema,
   validateReportType,
-  validateSelectedDate: (query) => validate(selectedDateSchema, query, { today: today() }).date,
-  validateCustomRange: (query) => validate(customRangeSchema, query, { today: today() }),
+  validateSelectedDate,
+  validateCustomRange,
+  validateReportParams,
 };

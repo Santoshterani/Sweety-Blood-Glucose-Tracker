@@ -3,3 +3,5 @@ process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgres://sweety:s
 process.env.JWT_SECRET = 'test-secret';
 process.env.BCRYPT_ROUNDS = '4'; // fast hashing in tests
 process.env.APP_TIMEZONE = 'Asia/Kolkata';
+process.env.QUEUE_PREFIX = 'sweety-test';
+process.env.REDIS_URL = process.env.TEST_REDIS_URL || 'redis://localhost:6379';

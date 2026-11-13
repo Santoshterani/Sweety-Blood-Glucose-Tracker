@@ -16,6 +16,15 @@ async function start() {
   app.listen(config.port, () => {
     console.log(`Sweety API running on http://localhost:${config.port}`);
   });
+
+  // Background jobs need Redis, so they are opt-in. If Redis is down the API keeps working.
+  if (config.reminders.enabled) {
+    try {
+      await require('./jobs').startJobs();
+    } catch (err) {
+      console.error('Could not start the reminder job (is Redis running?):', err.message);
+    }
+  }
 }
 
 start();

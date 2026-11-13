@@ -1,8 +1,9 @@
 const router = require('express').Router();
 const controller = require('../controllers/dashboard.controller');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
+const { ROLES } = require('../utils/roles');
 
-router.use(requireAuth);
+router.use(requireAuth, requireRole(ROLES.PATIENT)); // a patient's own data
 
 router.get('/', controller.get);
 

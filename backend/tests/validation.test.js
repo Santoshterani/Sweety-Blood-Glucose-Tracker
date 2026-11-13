@@ -1,10 +1,22 @@
 const { validateReading, VALUE_RANGE_MESSAGE } = require('../src/validators/readings.validator');
 const { validateSignup, validateLogin } = require('../src/validators/auth.validator');
 const { validateProfile } = require('../src/validators/profile.validator');
-const { validateReportType, validateCustomRange } = require('../src/validators/reports.validator');
+const { validateReportType, validateReportParams, validateCustomRange } = require('../src/validators/reports.validator');
 
 const TODAY = '2026-10-15';
 const valid = { value: 120, date: '2026-10-10', slot: 'morning' };
+const completePatientProfile = {
+  name: 'A',
+  email: 'a@b.co',
+  phone: '123456',
+  dateOfBirth: '1990-01-01',
+  sex: 'Female',
+  heightCm: '160',
+  weightKg: '60',
+  diabetesType: 'Type 2',
+  diagnosedYear: '2010',
+  medication: 'None',
+};
 
 /** Runs a validator and returns { errors, data } instead of throwing. */
 function run(fn, ...args) {
@@ -71,13 +83,19 @@ describe('validateSignup / validateLogin', () => {
   test('cleans up name and lower-cases email', () => {
     const { errors, data } = run(validateSignup, { name: '  Asha ', email: 'Asha@Example.COM ', password: 'password1' });
     expect(errors).toEqual({});
-    expect(data).toEqual({ name: 'Asha', email: 'asha@example.com', password: 'password1' });
+    expect(data).toEqual({ name: 'Asha', email: 'asha@example.com', password: 'password1', role: 'patient' });
   });
 
   test('rejects missing fields, bad email and short password', () => {
     expect(Object.keys(run(validateSignup, {}).errors).sort()).toEqual(['email', 'name', 'password']);
     expect(run(validateSignup, { name: 'A', email: 'nope', password: 'password1' }).errors.email).toMatch(/valid email/);
     expect(run(validateSignup, { name: 'A', email: 'a@b.co', password: 'short' }).errors.password).toMatch(/at least 8/);
+  });
+
+  test('signup accepts the doctor role and rejects unknown roles', () => {
+    const base = { name: 'Dr A', email: 'dr@b.co', password: 'password1' };
+    expect(run(validateSignup, { ...base, role: 'doctor' }).data.role).toBe('doctor');
+    expect(run(validateSignup, { ...base, role: 'admin' }).errors.role).toBe('Please choose a valid account type.');
   });
 
   test('login needs an email and a password', () => {
@@ -89,15 +107,47 @@ describe('validateSignup / validateLogin', () => {
 });
 
 describe('validateProfile', () => {
-  test('only name and email are required; the rest default', () => {
-    const { errors, data } = profile({ name: ' A ', email: 'A@B.co' });
+  test('requires personal and health details', () => {
+    const { errors } = profile({ name: 'A', email: 'a@b.co' });
+    expect(errors).toMatchObject({
+      phone: 'Please enter your phone number.',
+      dateOfBirth: 'Please enter your date of birth.',
+      sex: 'Please choose an option.',
+      diabetesType: 'Please select your diabetes type.',
+      diagnosedYear: 'Please enter the year diagnosed.',
+      heightCm: 'Please enter your height.',
+      weightKg: 'Please enter your weight.',
+      medication: 'Please enter your medication.',
+    });
+  });
+
+  test('required details validate while other fields keep their defaults', () => {
+    const { errors, data } = profile({ ...completePatientProfile, name: ' A ', email: 'A@B.co' });
     expect(errors).toEqual({});
-    expect(data).toMatchObject({ name: 'A', email: 'a@b.co', phone: null, targetLow: 70, targetHigh: 180, heightCm: null });
+    expect(data).toMatchObject({ name: 'A', email: 'a@b.co', targetLow: 70, targetHigh: 180, heightCm: 160 });
   });
 
   test('turns numeric strings into numbers and blanks into null', () => {
-    const { data } = profile({ name: 'A', email: 'a@b.co', heightCm: '162', weightKg: '68.5', phone: '  ', sex: '' });
-    expect(data).toMatchObject({ heightCm: 162, weightKg: 68.5, phone: null, sex: null });
+    const { data } = profile({ ...completePatientProfile, heightCm: '162', weightKg: '68.5', doctorName: '  ' });
+    expect(data).toMatchObject({ heightCm: 162, weightKg: 68.5, doctorName: null });
+  });
+
+  test('rejects a phone number containing only zeros', () => {
+    expect(profile({ ...completePatientProfile, phone: '0000000000' }).errors.phone).toBe(
+      'Phone number cannot contain only zeros.'
+    );
+  });
+
+  test('doctor profiles require personal details but not patient health details', () => {
+    const { errors, data } = run(validateProfile, {
+      name: 'Dr A',
+      email: 'doctor@example.com',
+      phone: '123456',
+      dateOfBirth: '1980-01-01',
+      sex: 'Other',
+    }, TODAY, 'doctor');
+    expect(errors).toEqual({});
+    expect(data).toMatchObject({ phone: '123456', diabetesType: null, heightCm: null });
   });
 
   test('reports a message per bad field', () => {
@@ -119,11 +169,19 @@ describe('validateProfile', () => {
     });
   });
 
+  test('doctorId is optional, blank means nobody, junk is rejected', () => {
+    expect(profile({ ...completePatientProfile }).data.doctorId).toBeNull();
+    expect(profile({ ...completePatientProfile, doctorId: '' }).data.doctorId).toBeNull();
+    expect(profile({ ...completePatientProfile, doctorId: '7' }).data.doctorId).toBe(7);
+    expect(profile({ ...completePatientProfile, doctorId: 'x' }).errors.doctorId).toBe('Please choose a valid doctor.');
+    expect(profile({ ...completePatientProfile, doctorId: 0 }).errors.doctorId).toBe('Please choose a valid doctor.');
+  });
+
   test('target range must be in order and in bounds', () => {
-    expect(profile({ name: 'A', email: 'a@b.co', targetLow: 100, targetHigh: 100 }).errors.targetHigh).toBe(
+    expect(profile({ ...completePatientProfile, targetLow: 100, targetHigh: 100 }).errors.targetHigh).toBe(
       'Target high must be greater than target low.'
     );
-    expect(profile({ name: 'A', email: 'a@b.co', targetLow: 5000 }).errors.targetLow).toBe(
+    expect(profile({ ...completePatientProfile, targetLow: 5000 }).errors.targetLow).toBe(
       'Must be a whole number between 40 and 600.'
     );
   });
@@ -133,6 +191,14 @@ describe('report validators', () => {
   test('unknown report type is a 404', () => {
     expect(() => validateReportType('hourly')).toThrow(expect.objectContaining({ status: 404 }));
     expect(validateReportType('weekly')).toBe('weekly');
+  });
+
+  test('weekly, monthly and yearly reports accept selected date ranges', () => {
+    const range = { from: '2026-10-01', to: '2026-10-07' };
+    for (const type of ['weekly', 'monthly', 'yearly']) {
+      expect(run(validateReportParams, type, range, TODAY).data).toEqual(range);
+    }
+    expect(run(validateReportParams, 'weekly', { date: TODAY }, TODAY).data).toEqual({ date: TODAY });
   });
 
   test('custom range rules', () => {

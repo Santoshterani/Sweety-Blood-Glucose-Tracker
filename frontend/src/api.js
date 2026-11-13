@@ -106,16 +106,30 @@ export const api = {
   updateReading: (id, body) => request('PUT', `/readings/${id}`, body),
   deleteReading: (id) => request('DELETE', `/readings/${id}`),
 
-  // type: daily | weekly | monthly | yearly | custom;  params: { date } or { from, to }
+  // Presets accept { date }; weekly, monthly, yearly, and custom reports accept { from, to }.
   report: (type, params) => request('GET', `/reports/${type}${query(params)}`),
 
   getProfile: () => request('GET', '/profile'),
   updateProfile: (body) => request('PUT', '/profile', body),
+
+  // patient screens
+  listDoctors: () => request('GET', '/doctors'),
+  reminders: () => request('GET', '/reminders'),
+
+  // doctor screens (a doctor sees only the patients who chose them)
+  doctorPatients: () => request('GET', '/doctor/patients'),
+  doctorPatient: (id) => request('GET', `/doctor/patients/${id}`),
+  patientReport: (id, type, params) => request('GET', `/doctor/patients/${id}/reports/${type}${query(params)}`),
 };
 
 /** Downloads the report as a PDF file (the browser saves it). */
-export async function downloadReportPdf(type, params) {
-  const path = `/reports/pdf${query({ type, ...params })}`;
+export const downloadReportPdf = (type, params) => downloadPdf(`/reports/pdf${query({ type, ...params })}`);
+
+/** A doctor downloading one of their patients' reports. */
+export const downloadPatientReportPdf = (patientId, type, params) =>
+  downloadPdf(`/doctor/patients/${patientId}/reports/pdf${query({ type, ...params })}`);
+
+async function downloadPdf(path) {
   const res = await send('GET', path);
   if (!res.ok) throw await fail(res, path, 'Could not create the PDF. Please try again.');
 

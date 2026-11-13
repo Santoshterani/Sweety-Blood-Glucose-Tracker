@@ -1,4 +1,5 @@
 const { Joi, EMAIL_RE } = require('./common');
+const { ROLE_VALUES, ROLES } = require('../utils/roles');
 const { validate } = require('./validate');
 
 const text = (requiredMessage) => ({ 'any.required': requiredMessage, 'string.empty': requiredMessage, 'string.base': requiredMessage });
@@ -16,6 +17,11 @@ const signupSchema = Joi.object({
     ...text('Please enter a password.'),
     'string.min': 'Password must be at least 8 characters.',
     'string.max': 'Password must be at most 72 characters.', // bcrypt limit
+  }),
+  // Who is signing up. Optional: the default is a patient.
+  role: Joi.string().valid(...ROLE_VALUES).default(ROLES.PATIENT).messages({
+    'any.only': 'Please choose a valid account type.',
+    'string.base': 'Please choose a valid account type.',
   }),
 });
 

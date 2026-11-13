@@ -4,7 +4,7 @@ import { Alert, Box, Button, LinearProgress, Link, List, ListItem, ListItemText,
 import AddIcon from '@mui/icons-material/Add';
 import { api } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
-import { formatLongDate, formatShortDate } from '../dates.js';
+import { formatDate, formatLongDate, formatShortDate } from '../dates.js';
 import { toneFor } from '../status.js';
 import PageHeader from '../components/PageHeader.jsx';
 import StatTile from '../components/StatTile.jsx';
@@ -21,7 +21,7 @@ const shortDay = (iso) =>
 
 function Panel({ title, action, children, sx }) {
   return (
-    <Paper variant="outlined" component="section" sx={{ p: 3, display: 'grid', gap: 2, alignContent: 'start', ...sx }}>
+    <Paper variant="outlined" component="section" sx={{ p: { xs: 2, sm: 3 }, display: 'grid', gap: 2, alignContent: 'start', ...sx }}>
       <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
         <Typography variant="h6" component="h2">
           {title}
@@ -37,6 +37,19 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const [reminders, setReminders] = useState([]);
+
+  // The daily reminder log (written by the background job). It is a nice-to-have: failures are ignored.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .reminders()
+      .then((res) => !cancelled && setReminders(res.reminders))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -189,6 +202,21 @@ export default function Dashboard() {
             </List>
           </Panel>
         </Box>
+      )}
+
+      {reminders.length > 0 && (
+        <Panel title="Daily reminders" sx={{ minWidth: 0 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: -1 }}>
+            Each evening Sweety notes the days you had fewer than 4 readings.
+          </Typography>
+          <List disablePadding>
+            {reminders.slice(0, 5).map((r) => (
+              <ListItem key={r.id} disableGutters divider>
+                <ListItemText primary={formatDate(r.date)} secondary={r.message} slotProps={{ primary: { fontWeight: 500 } }} />
+              </ListItem>
+            ))}
+          </List>
+        </Panel>
       )}
     </>
   );

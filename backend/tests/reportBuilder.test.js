@@ -43,8 +43,27 @@ describe('buildReport', () => {
       ],
     });
     expect(report.buckets).toEqual([
-      { name: 'Thu 5 Nov', label: 'Thu 5', count: 2, low: 100, avg: 120, high: 140 },
-      { name: 'Sun 8 Nov', label: 'Sun 8', count: 1, low: 90, avg: 90, high: 90 },
+      {
+        name: 'Thu 5 Nov',
+        label: 'Thu 5',
+        count: 2,
+        low: 100,
+        avg: 120,
+        high: 140,
+        readings: [
+          { id: 1, date: '2026-11-05', slot: 'morning', slotLabel: 'Morning (fasting)', value: 100 },
+          { id: 2, date: '2026-11-05', slot: 'after_dinner', slotLabel: 'After dinner', value: 140 },
+        ],
+      },
+      {
+        name: 'Sun 8 Nov',
+        label: 'Sun 8',
+        count: 1,
+        low: 90,
+        avg: 90,
+        high: 90,
+        readings: [{ id: 3, date: '2026-11-08', slot: 'morning', slotLabel: 'Morning (fasting)', value: 90 }],
+      },
     ]);
   });
 

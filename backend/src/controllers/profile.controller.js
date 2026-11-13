@@ -9,8 +9,8 @@ const get = async (req, res) => {
 
 // Saves the whole form
 const update = async (req, res) => {
-  const data = validateProfile(req.body, todayInTimezone(config.timezone));
-  res.json({ profile: await profileService.updateProfile(req.user.id, data) });
+  const data = validateProfile(req.body, todayInTimezone(config.timezone), req.user.role);
+  res.json({ profile: await profileService.updateProfile(req.user.id, req.user.role, data) });
 };
 
 module.exports = { get, update };

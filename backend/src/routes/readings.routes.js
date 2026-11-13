@@ -1,8 +1,9 @@
 const router = require('express').Router();
 const controller = require('../controllers/readings.controller');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
+const { ROLES } = require('../utils/roles');
 
-router.use(requireAuth); // every reading route needs a logged-in user
+router.use(requireAuth, requireRole(ROLES.PATIENT)); // readings belong to patients
 
 router.get('/', controller.list);
 router.post('/', controller.create);

@@ -9,7 +9,7 @@ const { toProfile } = require('../utils/profile');
 
 /**
  * Turns a report type into the date range it covers.
- * `params` is { date } for the preset reports, or { from, to } for a custom one.
+ * `params` is { date } for legacy presets, or { from, to } for selected periods and custom ranges.
  */
 function resolveRange(type, params) {
   switch (type) {
@@ -18,11 +18,11 @@ function resolveRange(type, params) {
     case 'daily':
       return { from: params.date, to: params.date };
     case 'weekly':
-      return lastSevenDaysRange(params.date);
+      return params.from ? { from: params.from, to: params.to } : lastSevenDaysRange(params.date);
     case 'monthly':
-      return previousMonthRange(params.date);
+      return params.from ? { from: params.from, to: params.to } : previousMonthRange(params.date);
     case 'yearly':
-      return yearToDateRange(params.date);
+      return params.from ? { from: params.from, to: params.to } : yearToDateRange(params.date);
     default:
       return monthToDateRange(params.date); // 'month-to-date'
   }

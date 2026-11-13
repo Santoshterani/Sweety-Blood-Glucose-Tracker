@@ -54,7 +54,7 @@ function groupReadings(rows, mode, from, to) {
     else if (mode === 'week') key = Math.floor(diffDays(from, date) / 7);
     else key = date.slice(0, 7);
 
-    if (!buckets.has(key)) buckets.set(key, { first: date, last: date, values: [] });
+    if (!buckets.has(key)) buckets.set(key, { first: date, last: date, values: [], readings: [] });
     const bucket = buckets.get(key);
     if (mode === 'week') {
       // Week buckets always span exactly 7 days from the start of the range.
@@ -67,11 +67,25 @@ function groupReadings(rows, mode, from, to) {
       bucket.last = date;
     }
     bucket.values.push(row.value);
+    bucket.readings.push({
+      id: row.id,
+      date,
+      slot: row.slot,
+      slotLabel: SLOT_LABELS[row.slot],
+      value: row.value,
+    });
   }
 
   return [...buckets.values()].map((b) => {
     const s = summarize(b.values);
-    return { ...describe(mode, b.first, b.last), count: s.count, low: s.lowest, avg: s.average, high: s.highest };
+    return {
+      ...describe(mode, b.first, b.last),
+      count: s.count,
+      low: s.lowest,
+      avg: s.average,
+      high: s.highest,
+      readings: b.readings,
+    };
   });
 }
 

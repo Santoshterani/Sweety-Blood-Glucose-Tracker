@@ -6,6 +6,16 @@ const applySchema = require('../src/db/init');
 const { todayInTimezone, addDays } = require('../src/utils/dates');
 
 const auth = (token) => ({ Authorization: `Bearer ${token}` });
+const patientDetails = {
+  phone: '+91 98765 43210',
+  dateOfBirth: '1972-03-14',
+  sex: 'Female',
+  heightCm: '162',
+  weightKg: '68',
+  diabetesType: 'Type 2',
+  diagnosedYear: '2018',
+  medication: 'Metformin 500 mg',
+};
 
 async function signup(email = 'asha@example.com', name = 'Asha') {
   const res = await request(app).post('/api/auth/signup').send({ name, email, password: 'password123' });
@@ -41,14 +51,7 @@ describe('profile', () => {
   const full = {
     name: 'Asha Rao',
     email: 'Asha.Rao@Example.com',
-    phone: '+91 98765 43210',
-    dateOfBirth: '1972-03-14',
-    sex: 'Female',
-    heightCm: '162',
-    weightKg: '68',
-    diabetesType: 'Type 2',
-    diagnosedYear: '2018',
-    medication: 'Metformin 500 mg',
+    ...patientDetails,
     targetLow: '80',
     targetHigh: '160',
     doctorName: 'Dr. Meera Iyer',
@@ -84,11 +87,24 @@ describe('profile', () => {
     expect(again.body.profile.medication).toBe('Metformin 500 mg');
   });
 
-  test('empty optional fields are stored as null', async () => {
+  test('optional fields still default to null or the target-range defaults', async () => {
     const token = await signup();
-    await request(app).put('/api/profile').set(auth(token)).send(full);
-    const res = await request(app).put('/api/profile').set(auth(token)).send({ name: 'Asha', email: 'asha@example.com' });
-    expect(res.body.profile).toMatchObject({ phone: null, heightCm: null, weightKg: null, diabetesType: null, targetLow: 70, targetHigh: 180 });
+    const res = await request(app).put('/api/profile').set(auth(token)).send({
+      ...full,
+      targetLow: '',
+      targetHigh: '',
+      doctorName: '',
+      doctorPhone: '',
+      emergencyContact: '',
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.profile).toMatchObject({
+      doctorName: null,
+      doctorPhone: null,
+      emergencyContact: null,
+      targetLow: 70,
+      targetHigh: 180,
+    });
   });
 
   test('validates fields with clear messages', async () => {
@@ -103,6 +119,7 @@ describe('profile', () => {
       weightKg: '5',
       diabetesType: 'Type 9',
       diagnosedYear: '1800',
+      medication: 'None',
       targetLow: '200',
       targetHigh: '100',
     });
@@ -124,7 +141,7 @@ describe('profile', () => {
   test("can't take another user's email", async () => {
     await signup('ravi@example.com', 'Ravi');
     const token = await signup('asha@example.com', 'Asha');
-    const res = await request(app).put('/api/profile').set(auth(token)).send({ name: 'Asha', email: 'RAVI@example.com' });
+    const res = await request(app).put('/api/profile').set(auth(token)).send({ ...full, name: 'Asha', email: 'RAVI@example.com' });
     expect(res.status).toBe(409);
     expect(res.body.errors.email).toBe('An account with this email already exists.');
   });
@@ -252,7 +269,13 @@ describe('dashboard', () => {
 
   test("uses the user's own target range for the in-range percentage", async () => {
     const token = await signup();
-    await request(app).put('/api/profile').set(auth(token)).send({ name: 'Asha', email: 'asha@example.com', targetLow: '100', targetHigh: '120' });
+    await request(app).put('/api/profile').set(auth(token)).send({
+      name: 'Asha',
+      email: 'asha@example.com',
+      ...patientDetails,
+      targetLow: '100',
+      targetHigh: '120',
+    });
     const today = todayInTimezone('Asia/Kolkata');
     await add(token, { date: today, slot: 'morning', value: 110 });
     await add(token, { date: today, slot: 'after_lunch', value: 150 });

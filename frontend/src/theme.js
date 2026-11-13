@@ -71,3 +71,26 @@ export const theme = createTheme({
     MuiTableCell: { styleOverrides: { head: { fontWeight: 600, fontSize: 13, color: '#3F4F4B', background: '#F7FAF9' } } },
   },
 });
+
+/**
+ * Roomier fields for the main forms (log in, sign up, add reading): a readable 14px label above a 16px input.
+ * Put it in the `sx` of the container that holds the fields. The app-wide default stays the compact style.
+ */
+export const roomyFields = {
+  '& .MuiInputLabel-root': {
+    fontSize: 14,
+    fontWeight: 600,
+    letterSpacing: 0,
+    lineHeight: 1.4,
+    marginBottom: '8px',
+    textTransform: 'none',
+    color: '#14211F',
+    '&.Mui-focused': { color: '#14211F' },
+    '&.Mui-error': { color: '#B3261E' },
+  },
+  '& .MuiOutlinedInput-root': { fontSize: 16, borderRadius: '12px' },
+  '& .MuiOutlinedInput-input': { padding: '15px 16px' },
+  '& .MuiOutlinedInput-notchedOutline': { borderColor: '#7C8F89' },
+  '& .MuiFormHelperText-root': { fontSize: 13, marginLeft: 0, marginTop: '6px' },
+  '& .MuiButton-root': { minHeight: 56, borderRadius: '12px', fontSize: 16 },
+};

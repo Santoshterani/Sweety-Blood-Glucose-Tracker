@@ -11,5 +11,8 @@ router.use('/readings', require('./readings.routes'));
 router.use('/reports', require('./reports.routes'));
 router.use('/profile', require('./profile.routes'));
 router.use('/dashboard', require('./dashboard.routes'));
+router.use('/reminders', require('./reminders.routes'));
+router.use('/doctors', require('./doctors.routes'));
+router.use('/doctor', require('./doctor.routes'));
 
 module.exports = router;

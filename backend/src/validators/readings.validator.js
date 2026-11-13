@@ -1,8 +1,7 @@
 const config = require('../config');
 const { isValidDateString, todayInTimezone } = require('../utils/dates');
-const { HttpError } = require('../utils/httpError');
 const { SLOT_VALUES, MIN_VALUE, MAX_VALUE } = require('../utils/slots');
-const { Joi, dateString, wholeNumber } = require('./common');
+const { Joi, dateString, wholeNumber, parseId } = require('./common');
 const { validate } = require('./validate');
 
 const VALUE_RANGE_MESSAGE = `Value must be between ${MIN_VALUE} and ${MAX_VALUE} mg/dl.`;
@@ -41,12 +40,7 @@ const listQuerySchema = Joi.object({
 });
 
 /** Someone else's (or a nonsense) id looks exactly like a missing one: 404. */
-function validateReadingId(raw) {
-  const text = String(raw);
-  const id = /^[1-9]\d{0,9}$/.test(text) ? Number(text) : NaN;
-  if (!Number.isSafeInteger(id) || id > 2147483647) throw new HttpError(404, 'Reading not found.');
-  return id;
-}
+const validateReadingId = (raw) => parseId(raw, 'Reading not found.');
 
 module.exports = {
   VALUE_RANGE_MESSAGE,

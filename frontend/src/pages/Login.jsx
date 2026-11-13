@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Alert, Box, Button, Link, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Divider, Link, TextField, Typography } from '@mui/material';
 import { api, ApiError } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import AuthShell from '../components/AuthShell.jsx';
+import PasswordField from '../components/PasswordField.jsx';
 
 export default function Login() {
   const { startSession } = useAuth();
@@ -36,8 +37,8 @@ export default function Login() {
   }
 
   return (
-    <AuthShell title="Welcome back" subtitle="Log in to track your blood glucose." showHero>
-      <Box component="form" onSubmit={handleSubmit} noValidate sx={{ display: 'grid', gap: 2 }}>
+    <AuthShell title="Welcome back" subtitle="Log in to track your blood glucose.">
+      <Box component="form" onSubmit={handleSubmit} noValidate sx={{ display: 'grid', gap: 2.5 }}>
         {formError && <Alert severity="error">{formError}</Alert>}
         <TextField
           label="Email"
@@ -48,13 +49,13 @@ export default function Login() {
           onChange={setField('email')}
           error={Boolean(errors.email)}
           helperText={errors.email}
+          placeholder="you@example.com"
           autoFocus
           fullWidth
         />
-        <TextField
+        <PasswordField
           label="Password"
           required
-          type="password"
           autoComplete="current-password"
           value={form.password}
           onChange={setField('password')}
@@ -65,9 +66,10 @@ export default function Login() {
         <Button type="submit" variant="contained" size="large" disabled={submitting}>
           {submitting ? 'Logging in…' : 'Log in'}
         </Button>
-        <Typography variant="body2" align="center">
-          New here?{' '}
-          <Link component={RouterLink} to="/signup">
+        <Divider sx={{ mt: 0.5 }} />
+        <Typography align="center" color="text.secondary">
+          New to Sweety?{' '}
+          <Link component={RouterLink} to="/signup" sx={{ fontWeight: 600 }}>
             Create an account
           </Link>
         </Typography>

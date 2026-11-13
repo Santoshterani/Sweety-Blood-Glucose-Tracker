@@ -100,4 +100,37 @@ const findRecent = async (userId, upTo, limit, executor = db) => {
   return rows;
 };
 
-module.exports = { count, findPage, findByDay, existsForUser, insert, update, remove, findInRange, findRecent };
+/** Per-patient numbers for [from, to]: count, average, highest, lowest and how many were inside their own target range. */
+const summarizeByUser = async (userIds, from, to, executor = db) => {
+  if (!userIds.length) return [];
+  const { rows } = await executor.query(
+    `SELECT r.user_id,
+            COUNT(*)::int AS count,
+            ROUND(AVG(r.value), 1)::float AS average,
+            MAX(r.value) AS highest,
+            MIN(r.value) AS lowest,
+            COUNT(*) FILTER (WHERE r.value BETWEEN u.target_low AND u.target_high)::int AS in_range
+     FROM readings r JOIN users u ON u.id = r.user_id
+     WHERE r.user_id = ANY($1::int[]) AND r.reading_date BETWEEN $2 AND $3
+     GROUP BY r.user_id`,
+    [userIds, from, to]
+  );
+  return rows;
+};
+
+/** The most recent reading of each listed patient. */
+const findLatestByUser = async (userIds, executor = db) => {
+  if (!userIds.length) return [];
+  const { rows } = await executor.query(
+    `SELECT DISTINCT ON (user_id) user_id, reading_date, slot, value
+     FROM readings
+     WHERE user_id = ANY($1::int[])
+     ORDER BY user_id, reading_date DESC, ${SLOT_ORDER_SQL} DESC`,
+    [userIds]
+  );
+  return rows;
+};
+
+module.exports = {
+  summarizeByUser,
+  findLatestByUser, count, findPage, findByDay, existsForUser, insert, update, remove, findInRange, findRecent };

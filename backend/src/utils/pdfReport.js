@@ -199,6 +199,78 @@ function renderReportPdf({ profile, report, generatedOn }) {
       y += rowH;
     });
 
+    const detailRows = report.bucketBy === 'slot' ? [] : report.buckets.flatMap((bucket) => bucket.readings || []);
+    if (detailRows.length) {
+      const detailRowH = 22;
+      const detailColumns = [
+        { title: 'Date', w: 125, get: (reading) => fmtDate(reading.date) },
+        { title: 'Time slot', w: 180, get: (reading) => reading.slotLabel },
+        { title: 'Glucose (mg/dl)', w: 100, get: (reading) => String(reading.value) },
+        {
+          title: 'Status',
+          w: 110,
+          get: (reading) =>
+            reading.value < profile.targetLow ? 'Below range' : reading.value > profile.targetHigh ? 'Above range' : 'In range',
+        },
+      ];
+
+      const drawDetailHeader = (continued = false) => {
+        doc.fillColor(INK).font('Helvetica-Bold').fontSize(12).text(
+          continued ? 'Individual readings (continued)' : `Individual readings (${detailRows.length})`,
+          left,
+          y
+        );
+        y += 20;
+        doc.rect(left, y, width, rowH).fill(TINT);
+        let x = left;
+        detailColumns.forEach((column) => {
+          doc.fillColor(INK).font('Helvetica-Bold').fontSize(9.5).text(column.title, x + 10, y + 6, {
+            width: column.w - 14,
+            lineBreak: false,
+          });
+          x += column.w;
+        });
+        doc.moveTo(left, y + rowH).lineTo(left + width, y + rowH).lineWidth(1.2).strokeColor(TEAL).stroke();
+        y += rowH;
+      };
+
+      if (y + 20 + rowH + detailRowH > bottomLimit) {
+        doc.addPage();
+        y = 40;
+      }
+      drawDetailHeader();
+
+      detailRows.forEach((reading, index) => {
+        if (y + detailRowH > bottomLimit) {
+          doc.addPage();
+          y = 40;
+          drawDetailHeader(true);
+        }
+        if (index % 2 === 1) doc.rect(left, y, width, detailRowH).fill(PANEL);
+        let x = left;
+        detailColumns.forEach((column) => {
+          const text = column.get(reading);
+          const color =
+            column.title === 'Status'
+              ? text === 'Above range'
+                ? ORANGE
+                : text === 'Below range'
+                  ? INDIGO
+                  : TEAL
+              : INK;
+          doc.fillColor(color).font(column.title === 'Glucose (mg/dl)' ? 'Helvetica-Bold' : 'Helvetica').fontSize(9.5).text(
+            text,
+            x + 10,
+            y + 6,
+            { width: column.w - 14, lineBreak: false, ellipsis: true }
+          );
+          x += column.w;
+        });
+        doc.moveTo(left, y + detailRowH).lineTo(left + width, y + detailRowH).lineWidth(0.5).strokeColor(LINE).stroke();
+        y += detailRowH;
+      });
+    }
+
     drawFooter(doc, generatedOn);
     doc.end();
   });

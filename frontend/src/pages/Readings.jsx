@@ -9,11 +9,13 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
   MenuItem,
   Pagination,
   Paper,
   Skeleton,
-  Snackbar,
   Table,
   TableBody,
   TableCell,
@@ -26,15 +28,18 @@ import {
 } from '@mui/material';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { api, ApiError } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import { formatDate, todayString } from '../dates.js';
 import { targetOf } from '../status.js';
 import PageHeader from '../components/PageHeader.jsx';
+import AppToast from '../components/AppToast.jsx';
 import ReadingForm from '../components/ReadingForm.jsx';
 import StatusChip from '../components/StatusChip.jsx';
 
 const PER_PAGE = 10;
+const visuallyHidden = { position: 'absolute', left: -9999, width: 1, height: 1, overflow: 'hidden' };
 
 export default function Readings() {
   const { user } = useAuth();
@@ -52,7 +57,8 @@ export default function Readings() {
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
-  const [toast, setToast] = useState('');
+  const [toast, setToast] = useState(null);
+  const [menu, setMenu] = useState(null); // { anchor, reading } for the phone's row menu
 
   useEffect(() => {
     api.slots().then(({ slots }) => setSlots(slots)).catch((err) => setError(err.message));
@@ -86,7 +92,7 @@ export default function Readings() {
 
   function handleEdited() {
     setEditing(null);
-    setToast('Reading updated.');
+    setToast({ message: 'Reading updated.', severity: 'success' });
     reload();
   }
 
@@ -94,11 +100,11 @@ export default function Readings() {
     setDeleteBusy(true);
     try {
       await api.deleteReading(deleting.id);
-      setToast('Reading deleted.');
+      setToast({ message: 'Reading deleted.', severity: 'success' });
       if (rows.length === 1 && page > 1) setPage(page - 1); // don't strand the user on an empty page
       else reload();
     } catch (err) {
-      setToast(err instanceof ApiError ? err.message : 'Could not delete the reading.');
+      setToast({ message: err instanceof ApiError ? err.message : 'Could not delete the reading.', severity: 'error' });
     } finally {
       setDeleteBusy(false);
       setDeleting(null);
@@ -110,71 +116,94 @@ export default function Readings() {
 
   return (
     <>
-      <PageHeader title="Readings" subtitle="Add a reading and see every reading you have logged, newest first." />
+      <PageHeader title="Readings" subtitle="Log a new reading, then review your recent ones below." />
 
-      <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 2fr) minmax(320px, 1fr)' }, alignItems: 'start' }}>
-        {/* ---------- table ---------- */}
-        <Paper variant="outlined" component="section" aria-label="Readings list" sx={{ minWidth: 0 }}>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', p: 2.5, borderBottom: 1, borderColor: 'divider' }}>
-            <TextField
-              select
-              size="small"
-              label="Time slot"
-              value={slotFilter}
-              onChange={(e) => {
-                setSlotFilter(e.target.value);
-                setPage(1);
-              }}
-              sx={{ minWidth: 220 }}
-            >
-              <MenuItem value="all">All slots</MenuItem>
-              {slots.map((s) => (
-                <MenuItem key={s.value} value={s.value}>
-                  {s.label}
-                </MenuItem>
-              ))}
-            </TextField>
-            <Box sx={{ flexGrow: 1 }} />
-            <Typography variant="body2" color="text.secondary" aria-live="polite">
-              {loading && rows.length === 0 ? '' : rangeText}
-            </Typography>
-          </Box>
+      {/* ---------- add reading (top) ---------- */}
+      <Paper variant="outlined" component="section" aria-labelledby="add-heading" sx={{ p: { xs: 2.5, sm: 3.5 } }}>
+        {slots.length === 0 ? <Skeleton variant="rounded" height={200} /> : <ReadingForm variant="wide" slots={slots} defaultDate={todayString()} onSaved={handleAdded} onValueError={(message) => setToast({ message, severity: 'error' })} />}
+      </Paper>
 
-          {error && (
-            <Alert severity="error" sx={{ m: 2 }}>
-              {error}
-            </Alert>
-          )}
+      {/* ---------- recent readings (below) ---------- */}
+      <Paper variant="outlined" component="section" aria-labelledby="recent-heading" sx={{ minWidth: 0, overflow: 'hidden' }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', p: { xs: 2.5, sm: 3.5 }, pb: { xs: 2, sm: 2.5 } }}>
+          <Typography id="recent-heading" variant="h5" component="h2" sx={{ flex: '1 1 auto' }}>
+            Recent readings
+          </Typography>
+          <Typography variant="body2" color="text.secondary" aria-live="polite" sx={{ order: { xs: 3, sm: 0 }, flex: { xs: '1 1 100%', sm: '0 0 auto' }, textAlign: { xs: 'right', sm: 'left' }, display: { xs: 'none', sm: 'block' } }}>
+            {loading && rows.length === 0 ? '' : rangeText}
+          </Typography>
+          <TextField
+            select
+            label="Time slot"
+            value={slotFilter}
+            onChange={(e) => {
+              setSlotFilter(e.target.value);
+              setPage(1);
+            }}
+            sx={{ minWidth: { xs: '100%', sm: 200 } }}
+          >
+            <MenuItem value="all">All time slots</MenuItem>
+            {slots.map((sl) => (
+              <MenuItem key={sl.value} value={sl.value}>
+                {sl.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'block', sm: 'none' }, flex: '1 1 100%', textAlign: 'right', mt: -1 }}>
+            {loading && rows.length === 0 ? '' : rangeText}
+          </Typography>
+        </Box>
 
-          <TableContainer>
-            <Table sx={{ minWidth: 560 }}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Time slot</TableCell>
-                  <TableCell>Value (mg/dl)</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="right">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody sx={{ opacity: loading && rows.length ? 0.5 : 1 }}>
-                {loading && rows.length === 0 &&
-                  [0, 1, 2, 3, 4].map((i) => (
-                    <TableRow key={i}>
-                      <TableCell colSpan={5}>
-                        <Skeleton height={28} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                {rows.map((r) => (
-                  <TableRow key={r.id} hover>
-                    <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(r.date)}</TableCell>
-                    <TableCell>{r.slotLabel}</TableCell>
-                    <TableCell sx={{ fontFamily: "'Manrope', sans-serif", fontWeight: 700, fontSize: 17 }}>{r.value}</TableCell>
-                    <TableCell>
-                      <StatusChip value={r.value} target={target} />
+        {error && (
+          <Alert severity="error" sx={{ mx: 2, mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        <TableContainer>
+          <Table sx={{ minWidth: { sm: 640 } }}>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, pl: { sm: 3.5 } }}>Date</TableCell>
+                <TableCell sx={{ pl: { xs: 2.5, sm: 2 } }}>
+                  <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Time slot</Box>
+                  <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Reading</Box>
+                </TableCell>
+                <TableCell>
+                  <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Value (mg/dl)</Box>
+                  <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>mg/dl</Box>
+                </TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="right" sx={{ pr: { xs: 1, sm: 3 } }}>
+                  <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Actions</Box>
+                  <Box component="span" sx={visuallyHidden}>Actions</Box>
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody sx={{ opacity: loading && rows.length ? 0.5 : 1 }}>
+              {loading && rows.length === 0 &&
+                [0, 1, 2, 3, 4].map((i) => (
+                  <TableRow key={i}>
+                    <TableCell colSpan={5}>
+                      <Skeleton height={28} />
                     </TableCell>
-                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                  </TableRow>
+                ))}
+              {rows.map((r) => (
+                <TableRow key={r.id} hover>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, whiteSpace: 'nowrap', pl: { sm: 3.5 } }}>{formatDate(r.date)}</TableCell>
+                  <TableCell sx={{ pl: { xs: 2.5, sm: 2 } }}>
+                    {r.slotLabel}
+                    <Typography variant="caption" color="text.secondary" component="div" sx={{ display: { xs: 'block', sm: 'none' } }}>
+                      {formatDate(r.date)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell sx={{ fontFamily: "'Manrope', sans-serif", fontWeight: 700, fontSize: 17 }}>{r.value}</TableCell>
+                  <TableCell>
+                    <StatusChip value={r.value} target={target} />
+                  </TableCell>
+                  <TableCell align="right" sx={{ whiteSpace: 'nowrap', pr: { xs: 0.5, sm: 2.5 } }}>
+                    <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
                       <Tooltip title="Edit">
                         <IconButton aria-label={`Edit ${r.slotLabel} reading on ${formatDate(r.date)}`} onClick={() => setEditing(r)}>
                           <EditOutlinedIcon fontSize="small" />
@@ -185,47 +214,62 @@ export default function Readings() {
                           <DeleteOutlineIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!loading && rows.length === 0 && !error && (
-                  <TableRow>
-                    <TableCell colSpan={5} sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
-                      {slotFilter === 'all' ? 'No readings yet. Use the form to add your first one.' : 'No readings for this time slot.'}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                    </Box>
+                    <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+                      <IconButton aria-label={`Actions for ${r.slotLabel} reading on ${formatDate(r.date)}`} aria-haspopup="menu" onClick={(e) => setMenu({ anchor: e.currentTarget, reading: r })}>
+                        <MoreVertIcon />
+                      </IconButton>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!loading && rows.length === 0 && !error && (
+                <TableRow>
+                  <TableCell colSpan={5} sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
+                    {slotFilter === 'all' ? 'No readings yet. Use the form above to add your first one.' : 'No readings for this time slot.'}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center', justifyContent: 'space-between', p: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              Page {pagination.page} of {Math.max(1, pagination.totalPages)}
-            </Typography>
-            <Pagination count={Math.max(1, pagination.totalPages)} page={pagination.page} onChange={(_, p) => setPage(p)} shape="rounded" color="primary" showFirstButton showLastButton />
-          </Box>
-        </Paper>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center', justifyContent: 'space-between', p: { xs: 2, sm: 2.5 }, px: { sm: 3.5 } }}>
+          <Typography variant="body2" color="text.secondary">
+            Page {pagination.page} of {Math.max(1, pagination.totalPages)}
+          </Typography>
+          <Pagination count={Math.max(1, pagination.totalPages)} page={pagination.page} onChange={(_, p) => setPage(p)} shape="rounded" color="primary" showFirstButton showLastButton siblingCount={0} />
+        </Box>
+      </Paper>
 
-        {/* ---------- add reading ---------- */}
-        <Paper variant="outlined" component="section" aria-labelledby="add-heading" sx={{ p: 3, display: 'grid', gap: 2.5 }}>
-          <Box>
-            <Typography id="add-heading" variant="h5" component="h2">
-              Add reading
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Up to 4 a day, one per time slot.
-            </Typography>
-          </Box>
-          {slots.length === 0 ? <Skeleton variant="rounded" height={320} /> : <ReadingForm slots={slots} defaultDate={todayString()} onSaved={handleAdded} />}
-        </Paper>
-      </Box>
+      {/* phone: row actions menu */}
+      <Menu anchorEl={menu?.anchor} open={Boolean(menu)} onClose={() => setMenu(null)}>
+        <MenuItem
+          onClick={() => {
+            setEditing(menu.reading);
+            setMenu(null);
+          }}
+        >
+          <ListItemIcon><EditOutlinedIcon fontSize="small" /></ListItemIcon>
+          <ListItemText primary="Edit" />
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setDeleting(menu.reading);
+            setMenu(null);
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon sx={{ color: 'inherit' }}><DeleteOutlineIcon fontSize="small" /></ListItemIcon>
+          <ListItemText primary="Delete" />
+        </MenuItem>
+      </Menu>
 
       {/* ---------- edit dialog ---------- */}
       <Dialog open={Boolean(editing)} onClose={() => setEditing(null)} fullWidth maxWidth="xs">
         <DialogTitle>Edit reading</DialogTitle>
         <DialogContent sx={{ pt: '8px !important' }}>
-          {editing && <ReadingForm slots={slots} reading={editing} onSaved={handleEdited} onCancel={() => setEditing(null)} />}
+          {editing && <ReadingForm slots={slots} reading={editing} onSaved={handleEdited} onCancel={() => setEditing(null)} onValueError={(message) => setToast({ message, severity: 'error' })} />}
         </DialogContent>
       </Dialog>
 
@@ -247,7 +291,7 @@ export default function Readings() {
         </DialogActions>
       </Dialog>
 
-      <Snackbar open={Boolean(toast)} autoHideDuration={3000} onClose={() => setToast('')} message={toast} />
+      <AppToast toast={toast} onClose={() => setToast(null)} />
     </>
   );
 }

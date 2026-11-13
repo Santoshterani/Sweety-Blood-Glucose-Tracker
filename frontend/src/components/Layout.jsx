@@ -23,17 +23,24 @@ import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutlined';
+import PeopleOutlineIcon from '@mui/icons-material/PeopleOutlined';
 import { useAuth } from '../AuthContext.jsx';
 import Logo from './Logo.jsx';
 
 const DRAWER_WIDTH = 248;
 
-const NAV = [
-  { label: 'Dashboard', to: '/', icon: <GridViewOutlinedIcon />, end: true },
-  { label: 'Readings', to: '/readings', icon: <FormatListBulletedIcon /> },
-  { label: 'Reports', to: '/reports', icon: <BarChartIcon /> },
-  { label: 'Profile', to: '/profile', icon: <PersonOutlineIcon /> },
-];
+const PROFILE_LINK = { label: 'Profile', to: '/profile', icon: <PersonOutlineIcon /> };
+
+// Patients and doctors see different menus.
+const NAV = {
+  patient: [
+    { label: 'Dashboard', to: '/', icon: <GridViewOutlinedIcon />, end: true },
+    { label: 'Readings', to: '/readings', icon: <FormatListBulletedIcon /> },
+    { label: 'Reports', to: '/reports', icon: <BarChartIcon /> },
+    PROFILE_LINK,
+  ],
+  doctor: [{ label: 'Patients', to: '/patients', icon: <PeopleOutlineIcon /> }, PROFILE_LINK],
+};
 
 export const initialsOf = (name = '') => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -59,7 +66,7 @@ export default function Layout() {
       </Box>
 
       <List component="nav" aria-label="Main" sx={{ display: 'grid', gap: 0.5, p: 0 }}>
-        {NAV.map((item) => (
+        {(NAV[user?.role] || NAV.patient).map((item) => (
           <ListItemButton
             key={item.to}
             component={NavLink}
@@ -82,7 +89,7 @@ export default function Layout() {
 
       <Box sx={{ mt: 'auto', borderTop: 1, borderColor: 'divider', pt: 2, px: 1, display: 'grid', gap: 1.5 }}>
         <ButtonBase
-          aria-label={`Account menu for ${user?.name || 'patient'}`}
+          aria-label={`Account menu for ${user?.name || 'your account'}`}
           aria-haspopup="menu"
           aria-controls={accountAnchor ? 'account-menu' : undefined}
           aria-expanded={accountAnchor ? 'true' : undefined}
@@ -109,7 +116,7 @@ export default function Layout() {
               {user?.name}
             </Typography>
             <Typography noWrap variant="body2" color="text.secondary">
-              {user?.diabetesType ? `${user.diabetesType} diabetes` : 'Patient'}
+              {user?.role === 'doctor' ? 'Doctor' : user?.diabetesType ? `${user.diabetesType} diabetes` : 'Patient'}
             </Typography>
           </Box>
           <ExpandMoreIcon fontSize="small" color="action" />
@@ -120,7 +127,7 @@ export default function Layout() {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <AppBar position="fixed" color="inherit" elevation={0} sx={{ display: { md: 'none' }, borderBottom: 1, borderColor: 'divider' }}>
+      <AppBar position="fixed" color="inherit" elevation={0} sx={{ display: { lg: 'none' }, borderBottom: 1, borderColor: 'divider' }}>
         <Toolbar sx={{ gap: 1 }}>
           <IconButton edge="start" aria-label="Open menu" onClick={() => setMobileOpen(true)}>
             <MenuIcon />
@@ -129,20 +136,20 @@ export default function Layout() {
         </Toolbar>
       </AppBar>
 
-      <Box component="aside" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}>
+      <Box component="aside" sx={{ width: { lg: DRAWER_WIDTH }, flexShrink: { lg: 0 } }}>
         <Drawer
           variant="temporary"
           open={mobileOpen}
           onClose={() => setMobileOpen(false)}
           ModalProps={{ keepMounted: true }}
-          sx={{ display: { xs: 'block', md: 'none' }, '& .MuiDrawer-paper': { width: DRAWER_WIDTH } }}
+          sx={{ display: { xs: 'block', lg: 'none' }, '& .MuiDrawer-paper': { width: DRAWER_WIDTH, maxWidth: '85vw' } }}
         >
           {drawer}
         </Drawer>
         <Drawer
           variant="permanent"
           open
-          sx={{ display: { xs: 'none', md: 'block' }, '& .MuiDrawer-paper': { width: DRAWER_WIDTH, borderRight: 1, borderColor: 'divider' } }}
+          sx={{ display: { xs: 'none', lg: 'block' }, '& .MuiDrawer-paper': { width: DRAWER_WIDTH, borderRight: 1, borderColor: 'divider' } }}
         >
           {drawer}
         </Drawer>
@@ -164,8 +171,8 @@ export default function Layout() {
         </MenuItem>
       </Menu>
 
-      <Box component="main" sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, sm: 3, md: 5 }, pt: { xs: 10, md: 5 }, pb: { xs: 6, md: 6 } }}>
-        <Box sx={{ maxWidth: 1180, mx: 'auto', display: 'grid', gap: 3, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+      <Box component="main" sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, sm: 3, lg: 5 }, pt: { xs: 10, lg: 5 }, pb: { xs: 6, lg: 6 } }}>
+        <Box sx={{ width: '100%', maxWidth: 2400, mx: 'auto', display: 'grid', gap: 3, gridTemplateColumns: 'minmax(0, 1fr)' }}>
           <Outlet />
         </Box>
       </Box>

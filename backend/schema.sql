@@ -39,3 +39,34 @@ CREATE TABLE IF NOT EXISTS readings (
   -- (This index also speeds up lookups by user and date.)
   CONSTRAINT one_reading_per_slot_per_day UNIQUE (user_id, reading_date, slot)
 );
+
+-- ---------------------------------------------------------------------------
+-- Roles and doctors
+-- ---------------------------------------------------------------------------
+-- 'patient' (default) or 'doctor'. A patient chooses at most one doctor (users.doctor_id);
+-- that choice is the patient's consent for the doctor to see their reports.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role      VARCHAR(10) NOT NULL DEFAULT 'patient';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS doctor_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_users_role' AND conrelid = 'users'::regclass) THEN
+    ALTER TABLE users ADD CONSTRAINT chk_users_role CHECK (role IN ('patient', 'doctor'));
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_users_doctor ON users (doctor_id);
+
+-- ---------------------------------------------------------------------------
+-- Daily reminder log (written by the BullMQ job)
+-- ---------------------------------------------------------------------------
+-- One row per patient per day who had fewer than 4 readings when the job ran.
+CREATE TABLE IF NOT EXISTS reminder_logs (
+  id             INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reminder_date  DATE NOT NULL,
+  readings_count SMALLINT NOT NULL,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- Running the job twice for the same day never logs the same patient twice.
+  CONSTRAINT one_reminder_per_user_per_day UNIQUE (user_id, reminder_date)
+);

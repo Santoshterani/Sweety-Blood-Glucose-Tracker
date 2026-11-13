@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Alert, Box, Button, Link, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Divider, FormControl, FormHelperText, FormLabel, Link, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { api, ApiError } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import AuthShell from '../components/AuthShell.jsx';
+import PasswordField from '../components/PasswordField.jsx';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -19,7 +20,7 @@ function validate({ name, email, password }) {
 
 export default function Signup() {
   const { startSession } = useAuth();
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'patient' });
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -47,8 +48,28 @@ export default function Signup() {
 
   return (
     <AuthShell title="Create your account" subtitle="Your readings are private to you.">
-      <Box component="form" onSubmit={handleSubmit} noValidate sx={{ display: 'grid', gap: 2 }}>
+      <Box component="form" onSubmit={handleSubmit} noValidate sx={{ display: 'grid', gap: 2.5 }}>
         {formError && <Alert severity="error">{formError}</Alert>}
+        <FormControl error={Boolean(errors.role)}>
+          <FormLabel id="role-label" sx={{ fontSize: 14, fontWeight: 600, color: 'text.primary', mb: 1, '&.Mui-focused': { color: 'text.primary' } }}>
+            I am a
+          </FormLabel>
+          <ToggleButtonGroup
+            exclusive
+            fullWidth
+            color="primary"
+            value={form.role}
+            onChange={(_, role) => role && setForm((f) => ({ ...f, role }))}
+            aria-labelledby="role-label"
+            sx={{ '& .MuiToggleButton-root': { minHeight: 48, textTransform: 'none', fontWeight: 600, fontSize: 15, borderRadius: '12px' } }}
+          >
+            <ToggleButton value="patient">Patient</ToggleButton>
+            <ToggleButton value="doctor">Doctor</ToggleButton>
+          </ToggleButtonGroup>
+          <FormHelperText>
+            {errors.role || (form.role === 'doctor' ? 'Patients choose you from their profile to share their reports with you.' : 'Track your own blood glucose readings.')}
+          </FormHelperText>
+        </FormControl>
         <TextField
           label="Name"
           required
@@ -71,10 +92,9 @@ export default function Signup() {
           helperText={errors.email}
           fullWidth
         />
-        <TextField
+        <PasswordField
           label="Password"
           required
-          type="password"
           autoComplete="new-password"
           value={form.password}
           onChange={setField('password')}
@@ -85,9 +105,10 @@ export default function Signup() {
         <Button type="submit" variant="contained" size="large" disabled={submitting}>
           {submitting ? 'Creating account…' : 'Sign up'}
         </Button>
-        <Typography variant="body2" align="center">
+        <Divider sx={{ mt: 0.5 }} />
+        <Typography align="center" color="text.secondary">
           Already have an account?{' '}
-          <Link component={RouterLink} to="/login">
+          <Link component={RouterLink} to="/login" sx={{ fontWeight: 600 }}>
             Log in
           </Link>
         </Typography>

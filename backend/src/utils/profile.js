@@ -12,6 +12,8 @@ function toProfile(row) {
     id: row.id,
     name: row.name,
     email: row.email,
+    role: row.role || 'patient',
+    doctorId: row.doctor_id ?? null,
     phone: row.phone ?? null,
     dateOfBirth: row.date_of_birth ?? null,
     age: row.date_of_birth ? ageOn(row.date_of_birth, today) : null,
