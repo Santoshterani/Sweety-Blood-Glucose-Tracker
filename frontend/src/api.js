@@ -4,6 +4,10 @@
 const TOKEN_KEY = 'sweety_token';
 const NETWORK_MESSAGE = 'Cannot reach the server. Please check your connection and try again.';
 
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL || ''
+).replace(/\/$/, '');
+
 export class ApiError extends Error {
   constructor(status, message, fieldErrors = {}) {
     super(message);
@@ -54,7 +58,7 @@ const query = (params = {}) => {
 async function send(method, path, body) {
   const token = tokenStore.get();
   try {
-    return await fetch(`/api${path}`, {
+    return await fetch(`${API_BASE_URL}/api${path}`, {
       method,
       headers: {
         ...(body && { 'Content-Type': 'application/json' }),
